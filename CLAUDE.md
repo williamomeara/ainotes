@@ -4,8 +4,8 @@
 
 AiNotes is a **personal AI knowledge base** — voice is the primary input, but users can also paste text, scan photos, and import documents. An on-device LLM + RAG engine powers everything: rewriting messy transcripts into clean notes, auto-classifying and filing them, finding related content, and answering questions about your own knowledge. Fully on-device for privacy.
 
-See `how_it_works.md` for the original product spec.
-See `~/.claude/plans/sharded-jumping-flask.md` for the full implementation plan.
+See `docs/how_it_works.md` for the original product spec.
+See `docs/implementation_plan.md` for the full implementation plan (kept in sync with this project).
 
 ## Tech Stack
 
@@ -71,13 +71,13 @@ dart run build_runner build --delete-conflicting-outputs  # freezed/objectbox co
 
 ## Implementation Phases
 
-1. **Foundation + Notes UI** ✅ — Theme, router, Note model, file store, home grid, search, detail screen
-2. **Recording + STT** — Audio recording, waveform, live transcription
-3. **LLM Pipeline** — Rewrite, classify, processing animation, model manager
-4. **Embeddings + RAG** — Semantic search, "ask your notes", smart merging
-5. **Multi-Input + Polish** — Text/photo/document capture, onboarding, settings
-6. **Intelligence Layer** — Auto-linking, clustering, weekly digest
+1. **Foundation + Notes UI + Unified Input** ✅ COMPLETE — Theme, router, Note model, file store, home grid + folders view, unified input bar with smart intent detection, enhanced chat bubbles, Android 16 fix
+2. **Recording + STT** (Phase 2) — Audio recording with waveform, live transcription via sherpa_onnx
+3. **LLM Pipeline + Processing** (Phase 3) — Rewrite, classify, processing animation with step indicators, model manager
+4. **Embeddings + RAG** (Phase 4) — Semantic search, "ask your notes" RAG-powered Q&A, smart note merging
+5. **Multi-Input + Polish** (Phase 5) — Text/photo/document capture, onboarding flow, settings
+6. **Intelligence Layer** (Phase 6) — Auto-linking, clustering, weekly digest, custom categories
 
 ## Key References
-- `how_it_works.md` — original product spec
-- `~/.claude/plans/sharded-jumping-flask.md` — full implementation plan
+- `docs/how_it_works.md` — original product spec
+- `docs/implementation_plan.md` — full implementation plan (Phase 1 ✅ complete, Phase 2+ planned)
