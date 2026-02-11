@@ -1,0 +1,223 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/design_tokens.dart';
+import '../domain/note.dart';
+import '../providers/notes_provider.dart';
+
+class NoteDetailScreen extends ConsumerStatefulWidget {
+  const NoteDetailScreen({super.key, required this.noteId});
+
+  final String noteId;
+
+  @override
+  ConsumerState<NoteDetailScreen> createState() => _NoteDetailScreenState();
+}
+
+class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
+  bool _showOriginal = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<AppColors>()!;
+    final notesAsync = ref.watch(notesProvider);
+
+    return notesAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, _) => Scaffold(
+        body: Center(child: Text('Error: $e')),
+      ),
+      data: (notes) {
+        final note = notes.where((n) => n.id == widget.noteId).firstOrNull;
+        if (note == null) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text('Note not found')),
+          );
+        }
+        return _buildContent(context, note, colors);
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, Note note, AppColors colors) {
+    final categoryColor = note.category.color(colors);
+
+    return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () {
+              // TODO: edit mode
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'delete') {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete note?'),
+                    content: const Text('This cannot be undone.'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Delete')),
+                    ],
+                  ),
+                );
+                if (confirmed == true && context.mounted) {
+                  await ref.read(notesProvider.notifier).deleteNote(note.id);
+                  if (context.mounted) Navigator.pop(context);
+                }
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'delete', child: Text('Delete')),
+            ],
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(Spacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Category + confidence
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Spacing.sm, vertical: Spacing.xs),
+                  decoration: BoxDecoration(
+                    color: categoryColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(Radii.sm),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(note.category.icon, size: 16, color: categoryColor),
+                      const SizedBox(width: 4),
+                      Text(note.category.label,
+                          style: AppTypography.label
+                              .copyWith(color: categoryColor)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Spacing.sm),
+                Text(
+                  '${(note.confidence * 100).round()}% confidence',
+                  style:
+                      AppTypography.caption.copyWith(color: colors.textTertiary),
+                ),
+              ],
+            ),
+            const SizedBox(height: Spacing.xl),
+
+            // Before/after toggle
+            Row(
+              children: [
+                _ToggleChip(
+                  label: 'Rewritten',
+                  selected: !_showOriginal,
+                  colors: colors,
+                  onTap: () => setState(() => _showOriginal = false),
+                ),
+                const SizedBox(width: Spacing.sm),
+                _ToggleChip(
+                  label: 'Original',
+                  selected: _showOriginal,
+                  colors: colors,
+                  onTap: () => setState(() => _showOriginal = true),
+                ),
+              ],
+            ),
+            const SizedBox(height: Spacing.lg),
+
+            // Note content
+            Text(
+              _showOriginal ? note.originalText : note.rewrittenText,
+              style: AppTypography.body.copyWith(color: colors.textPrimary),
+            ),
+
+            if (note.tags.isNotEmpty) ...[
+              const SizedBox(height: Spacing.xl),
+              Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.xs,
+                children: note.tags
+                    .map((tag) => Chip(
+                          label: Text('#$tag',
+                              style: AppTypography.caption
+                                  .copyWith(color: colors.textSecondary)),
+                          backgroundColor: colors.surfaceVariant,
+                          side: BorderSide.none,
+                        ))
+                    .toList(),
+              ),
+            ],
+
+            const SizedBox(height: Spacing.xl),
+            // Metadata
+            Text(
+              '${note.source.label} • ${_formatDate(note.createdAt)}',
+              style:
+                  AppTypography.caption.copyWith(color: colors.textTertiary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+}
+
+class _ToggleChip extends StatelessWidget {
+  const _ToggleChip({
+    required this.label,
+    required this.selected,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final AppColors colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.md, vertical: Spacing.sm),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent.withValues(alpha: 0.2) : colors.surfaceVariant,
+          borderRadius: BorderRadius.circular(Radii.sm),
+        ),
+        child: Text(
+          label,
+          style: AppTypography.label.copyWith(
+            color: selected ? colors.accent : colors.textTertiary,
+          ),
+        ),
+      ),
+    );
+  }
+}

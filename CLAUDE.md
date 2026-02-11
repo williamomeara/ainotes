@@ -2,90 +2,82 @@
 
 ## Project Overview
 
-AiNotes is a voice note organizer: record → transcribe → rewrite → classify → file. All processing happens fully on-device (STT + LLM) for privacy. Built with Flutter/Dart, targeting iOS + Android.
+AiNotes is a **personal AI knowledge base** — voice is the primary input, but users can also paste text, scan photos, and import documents. An on-device LLM + RAG engine powers everything: rewriting messy transcripts into clean notes, auto-classifying and filing them, finding related content, and answering questions about your own knowledge. Fully on-device for privacy.
 
-See `how_it_works.md` for the full product spec.
+See `how_it_works.md` for the original product spec.
+See `~/.claude/plans/sharded-jumping-flask.md` for the full implementation plan.
 
 ## Tech Stack
 
-### On-device STT (Speech-to-Text)
-- **Primary: Moonshine** (Useful Sensors) — 26MB tiny model, 5x faster than Whisper Tiny, state-of-the-art edge STT. Requires platform channels (no Flutter package yet).
-- **Fallback: Sherpa-ONNX** (`sherpa_onnx` package) — best ready-to-use Flutter package for cross-platform STT, native Flutter integration.
-
-### On-device LLM (note rewriting + classification)
-- **Runtime: llama.cpp** via `fllama` package (most mature Flutter integration, GGUF format)
-- **Default model: Qwen 2.5 1.5B Q4_K_M** (~900MB, 25-40 tok/s, best instruction-following in class)
-- **Alternative models users can choose:**
-  - Gemma 3 1B Q4 (~700MB, lighter)
-  - SmolLM2 1.7B Q4 (~1.2GB, quality-focused)
-  - Qwen 2.5 0.5B Q4 (~300MB, low-end devices)
-- Pluggable architecture: Strategy pattern so users can download/switch models
-
-### Local Storage
-- Hive or Isar for structured note data
+### On-device STT — `sherpa_onnx` (Moonshine model)
+### On-device LLM — `llamadart` (Qwen 2.5 1.5B Q4_K_M default, pluggable GGUF models)
+### On-device Embeddings — EmbeddingGemma via `flutter_gemma`
+### Vector Search — ObjectBox (HNSW)
+### Storage — Markdown files w/ YAML frontmatter + ObjectBox index
+### State Management — Riverpod
+### Navigation — go_router
+### Data Models — freezed + json_serializable
 
 ## Architecture
 
-### Folder Structure
-Feature-first organization under `lib/`:
+Feature-first under `lib/`:
 ```
 lib/
-  features/
-    recording/
-    notes/
-    settings/
-  core/
-    stt/          # STTEngine abstraction
-    llm/          # LLMInferenceEngine abstraction
-    models/
-    storage/
-  app.dart
-  main.dart
+├── main.dart / app.dart
+├── core/
+│   ├── theme/          # AppColors, AppTypography, design tokens
+│   ├── routing/        # GoRouter config
+│   ├── error/          # Result<T> sealed class
+│   ├── ai/             # LLMEngine, STTEngine, EmbeddingEngine abstractions
+│   ├── rag/            # RAG engine, chunker, prompt templates
+│   └── storage/        # NoteFileStore, ObjectBox index, vector store
+├── features/
+│   ├── home/           # Card grid with smart grouping + filter chips
+│   ├── notes/          # Note model, detail screen, providers, repository
+│   ├── recording/      # Recording UI, waveform, STT integration
+│   ├── search/         # Hybrid keyword + semantic search
+│   ├── ask/            # RAG-powered Q&A chat
+│   ├── capture/        # Multi-input: text, photo/OCR, document
+│   ├── processing/     # Pipeline: transcribe → rewrite → classify → embed → save
+│   ├── models_manager/ # ML model download/management
+│   ├── settings/
+│   └── onboarding/
+└── shared/widgets/     # GradientButton, AppShell
 ```
 
-### Key Abstractions
-- **`STTEngine`** — pluggable speech-to-text (strategy pattern + factory). Implementations: MoonshineSTT, SherpaOnnxSTT.
-- **`LLMInferenceEngine`** — pluggable LLM inference (strategy pattern + factory). Implementations: FLlamaEngine (with swappable GGUF models).
+### Key Abstractions (Strategy Pattern)
+- **`LLMEngine`** — pluggable LLM inference
+- **`STTEngine`** — pluggable speech-to-text
+- **`EmbeddingEngine`** — pluggable embeddings for RAG
 
-### Data Model
+### Data Model (freezed)
 ```dart
-class Note {
-  String id;
-  String originalText;      // raw transcript
-  String rewrittenText;     // cleaned by LLM
-  NoteCategory category;    // classified by LLM
-  String? customCategory;
-  double confidence;
-  DateTime timestamp;
-  List<String>? tags;
-}
+Note { id, originalText, rewrittenText, category, confidence, createdAt, tags, source, ... }
+NoteCategory { shopping, todos, ideas, general }
+NoteSource { voice, text, photo, document, webClip }
 ```
-Categories: built-in (`shopping`, `todos`, `general`) + user-created custom categories.
 
-## Design System (from Figma reference)
-- **Dark theme:** `stone-900` background, `orange-100/200/300` text hierarchy, `orange-700 → amber-700` gradient accents
-- Rounded corners, backdrop blur, subtle borders
-- Mobile-first: safe areas, slide-up bottom sheets, tap feedback animations
-- Figma Make file key: `8jLUJXi7fvC5PQs5c4DCE8`
+### Storage: Markdown + YAML frontmatter
+Notes stored as `.md` files (LLM-friendly, human-readable, portable). ObjectBox indexes metadata + embeddings.
 
 ## Build & Run Commands
 
 ```bash
-# Run
 flutter run
-
-# Build
-flutter build apk
-flutter build ios
-
-# Test
 flutter test
-flutter test test/path_to_test.dart
-
-# Analyze
 flutter analyze
+dart run build_runner build --delete-conflicting-outputs  # freezed/objectbox codegen
 ```
 
+## Implementation Phases
+
+1. **Foundation + Notes UI** ✅ — Theme, router, Note model, file store, home grid, search, detail screen
+2. **Recording + STT** — Audio recording, waveform, live transcription
+3. **LLM Pipeline** — Rewrite, classify, processing animation, model manager
+4. **Embeddings + RAG** — Semantic search, "ask your notes", smart merging
+5. **Multi-Input + Polish** — Text/photo/document capture, onboarding, settings
+6. **Intelligence Layer** — Auto-linking, clustering, weekly digest
+
 ## Key References
-- `how_it_works.md` — full product spec
-- Figma Make file (`8jLUJXi7fvC5PQs5c4DCE8`) — UI design reference
+- `how_it_works.md` — original product spec
+- `~/.claude/plans/sharded-jumping-flask.md` — full implementation plan
