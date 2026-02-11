@@ -8,7 +8,10 @@ import '../../features/notes/presentation/note_detail_screen.dart';
 import '../../features/recording/presentation/recording_screen.dart';
 import '../../features/processing/presentation/processing_screen.dart';
 import '../../features/capture/presentation/text_capture_screen.dart';
+import '../../features/capture/presentation/photo_capture_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/search/presentation/search_screen.dart';
+import '../../features/models_manager/presentation/model_manager_screen.dart';
 import '../../shared/widgets/app_shell.dart';
 
 GoRouter createRouter({required bool onboardingComplete}) {
@@ -104,9 +107,29 @@ GoRouter createRouter({required bool onboardingComplete}) {
       ),
       GoRoute(
         path: '/capture/photo',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text('Photo capture coming soon')),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          child: const PhotoCaptureScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              )),
+              child: child,
+            );
+          },
         ),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/models',
+        builder: (context, state) => const ModelManagerScreen(),
       ),
     ],
   );
