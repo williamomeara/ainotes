@@ -6,6 +6,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/category_chip.dart';
 import '../domain/note.dart';
+import '../domain/note_category.dart';
 import '../providers/notes_provider.dart';
 
 class NoteDetailScreen extends ConsumerStatefulWidget {
@@ -19,6 +20,20 @@ class NoteDetailScreen extends ConsumerStatefulWidget {
 
 class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   bool _showOriginal = false;
+  bool _editing = false;
+  late TextEditingController _editController;
+
+  @override
+  void initState() {
+    super.initState();
+    _editController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _editController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,43 +67,94 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
         .take(5)
         .toList();
 
+    if (_editing && _editController.text.isEmpty) {
+      _editController.text = note.rewrittenText;
+    }
+
     return Scaffold(
       appBar: AppBar(
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              // TODO: edit mode
-            },
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'delete') {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Delete note?'),
-                    content: const Text('This cannot be undone.'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Cancel')),
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Delete')),
-                    ],
-                  ),
+          if (_editing) ...[
+            TextButton(
+              onPressed: () => setState(() => _editing = false),
+              child: Text('Cancel',
+                  style: TextStyle(color: colors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final updated = note.copyWith(
+                  rewrittenText: _editController.text,
                 );
-                if (confirmed == true && context.mounted) {
-                  await ref.read(notesProvider.notifier).deleteNote(note.id);
-                  if (context.mounted) Navigator.pop(context);
+                await ref.read(notesProvider.notifier).updateNote(updated);
+                setState(() => _editing = false);
+              },
+              child: Text('Save', style: TextStyle(color: colors.accent)),
+            ),
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () {
+                _editController.text = note.rewrittenText;
+                setState(() => _editing = true);
+              },
+            ),
+            // Category override
+            PopupMenuButton<dynamic>(
+              onSelected: (value) async {
+                if (value == 'delete') {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Delete note?'),
+                      content: const Text('This cannot be undone.'),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel')),
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Delete')),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true && context.mounted) {
+                    await ref
+                        .read(notesProvider.notifier)
+                        .deleteNote(note.id);
+                    if (context.mounted) Navigator.pop(context);
+                  }
+                } else if (value is NoteCategory) {
+                  // Category override
+                  final updated = note.copyWith(category: value);
+                  await ref.read(notesProvider.notifier).updateNote(updated);
                 }
-              }
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'delete', child: Text('Delete')),
-            ],
-          ),
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                    value: 'delete', child: Text('Delete')),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  enabled: false,
+                  child: Text('Change category:'),
+                ),
+                for (final cat in NoteCategory.values)
+                  PopupMenuItem(
+                    value: cat,
+                    child: Row(
+                      children: [
+                        Icon(cat.icon, size: IconSizes.sm),
+                        const SizedBox(width: Spacing.sm),
+                        Text(cat.label),
+                        if (cat == note.category) ...[
+                          const Spacer(),
+                          const Icon(Icons.check, size: IconSizes.sm),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
       body: Hero(
@@ -109,45 +175,61 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                       textStyle: AppTypography.label,
                     ),
                     const SizedBox(width: Spacing.sm),
-                    Text(
-                      '${(note.confidence * 100).round()}% confidence',
-                      style: AppTypography.caption
-                          .copyWith(color: colors.textTertiary),
-                    ),
+                    _ConfidenceBadge(
+                        confidence: note.confidence, colors: colors),
                   ],
                 ),
                 const SizedBox(height: Spacing.xl),
 
-                // Before/after toggle
-                Row(
-                  children: [
-                    _ToggleChip(
-                      label: 'Rewritten',
-                      selected: !_showOriginal,
-                      colors: colors,
-                      onTap: () => setState(() => _showOriginal = false),
+                if (_editing) ...[
+                  TextField(
+                    controller: _editController,
+                    maxLines: null,
+                    style: AppTypography.body
+                        .copyWith(color: colors.textPrimary),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: colors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(Radii.md),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                    const SizedBox(width: Spacing.sm),
-                    _ToggleChip(
-                      label: 'Original',
-                      selected: _showOriginal,
-                      colors: colors,
-                      onTap: () => setState(() => _showOriginal = true),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: Spacing.lg),
-
-                // Note content with animated transition
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    _showOriginal ? note.originalText : note.rewrittenText,
-                    key: ValueKey(_showOriginal),
-                    style:
-                        AppTypography.body.copyWith(color: colors.textPrimary),
                   ),
-                ),
+                ] else ...[
+                  // Before/after toggle
+                  Row(
+                    children: [
+                      _ToggleChip(
+                        label: 'Rewritten',
+                        selected: !_showOriginal,
+                        colors: colors,
+                        onTap: () => setState(() => _showOriginal = false),
+                      ),
+                      const SizedBox(width: Spacing.sm),
+                      _ToggleChip(
+                        label: 'Original',
+                        selected: _showOriginal,
+                        colors: colors,
+                        onTap: () => setState(() => _showOriginal = true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Spacing.lg),
+
+                  // Note content with animated transition
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      _showOriginal
+                          ? note.originalText
+                          : note.rewrittenText,
+                      key: ValueKey(_showOriginal),
+                      style: AppTypography.body
+                          .copyWith(color: colors.textPrimary),
+                    ),
+                  ),
+                ],
 
                 if (note.tags.isNotEmpty) ...[
                   const SizedBox(height: Spacing.xl),
@@ -173,6 +255,19 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                   style: AppTypography.caption
                       .copyWith(color: colors.textTertiary),
                 ),
+                if (note.audioDuration != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Spacing.xs),
+                    child: Text(
+                      'Audio: ${note.audioDuration!.inSeconds}s',
+                      style: AppTypography.caption
+                          .copyWith(color: colors.textTertiary),
+                    ),
+                  ),
+
+                // AI Transparency: "Why this category?"
+                const SizedBox(height: Spacing.lg),
+                _WhyThisCategory(note: note, colors: colors),
 
                 // Related notes
                 if (related.isNotEmpty) ...[
@@ -217,6 +312,104 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     if (diff.inDays < 1) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dt.day}/${dt.month}/${dt.year}';
+  }
+}
+
+class _ConfidenceBadge extends StatelessWidget {
+  const _ConfidenceBadge({required this.confidence, required this.colors});
+
+  final double confidence;
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = confidence > 0.85
+        ? colors.success
+        : confidence > 0.6
+            ? colors.warning
+            : colors.accent;
+    final label = confidence > 0.85
+        ? 'High confidence'
+        : confidence > 0.6
+            ? 'Medium confidence'
+            : 'Low confidence';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: Spacing.sm, vertical: Spacing.xs),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(Radii.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${(confidence * 100).round()}% - $label',
+            style: AppTypography.caption.copyWith(color: color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WhyThisCategory extends StatelessWidget {
+  const _WhyThisCategory({required this.note, required this.colors});
+
+  final Note note;
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = switch (note.category) {
+      NoteCategory.shopping =>
+        'Contains shopping-related terms like items to buy or grocery references.',
+      NoteCategory.todos =>
+        'Contains task-related language like reminders or to-do items.',
+      NoteCategory.ideas =>
+        'Contains creative or conceptual language suggesting brainstorming.',
+      NoteCategory.general =>
+        'General note that doesn\'t strongly match other categories.',
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(Radii.md),
+        border:
+            Border.all(color: colors.surfaceVariant.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.auto_awesome,
+              size: IconSizes.sm, color: colors.textTertiary),
+          const SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Why ${note.category.label}?',
+                    style: AppTypography.caption
+                        .copyWith(color: colors.textSecondary)),
+                const SizedBox(height: 2),
+                Text(reason,
+                    style: AppTypography.caption
+                        .copyWith(color: colors.textTertiary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -289,11 +482,12 @@ class _MiniNoteCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(note.category.icon, size: IconSizes.xs, color: categoryColor),
+                Icon(note.category.icon,
+                    size: IconSizes.xs, color: categoryColor),
                 const SizedBox(width: 4),
                 Text(note.category.label,
-                    style:
-                        AppTypography.caption.copyWith(color: categoryColor)),
+                    style: AppTypography.caption
+                        .copyWith(color: categoryColor)),
               ],
             ),
             const SizedBox(height: Spacing.sm),
