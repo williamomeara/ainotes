@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../domain/recording_state.dart';
 import '../providers/recording_provider.dart';
 
 class WaveformVisualizer extends ConsumerStatefulWidget {
@@ -35,7 +36,7 @@ class _WaveformVisualizerState extends ConsumerState<WaveformVisualizer>
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final recording = ref.watch(recordingProvider);
-    final isActive = recording.state == RecordingState.recording;
+    final isActive = recording.status == RecordingStatus.recording;
 
     return AnimatedBuilder(
       animation: _controller,

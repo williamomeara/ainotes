@@ -7,6 +7,7 @@ import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../notes/domain/note_category.dart';
 import '../../unified_input/providers/unified_input_provider.dart';
+import '../domain/recording_state.dart';
 import 'record_button.dart';
 import 'waveform_visualizer.dart';
 import 'live_transcript.dart';
@@ -40,11 +41,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           children: [
             _buildTopBar(context, colors, recording),
             Expanded(
-              child: recording.state == RecordingState.stopped
+              child: recording.status == RecordingStatus.stopped
                   ? _buildReview(colors, recording)
                   : _buildRecording(colors, recording),
             ),
-            if (recording.state != RecordingState.stopped)
+            if (recording.status != RecordingStatus.stopped)
               _buildBottomControls(colors, recording),
           ],
         ),
@@ -67,32 +68,32 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             },
           ),
           const Spacer(),
-          if (recording.state == RecordingState.recording ||
-              recording.state == RecordingState.paused)
+          if (recording.status == RecordingStatus.recording ||
+              recording.status == RecordingStatus.paused)
             Text(
               _formatDuration(recording.elapsed),
               style: AppTypography.heading3.copyWith(
-                color: recording.state == RecordingState.recording
-                    ? colors.recording
+                color: recording.status == RecordingStatus.recording
+                    ? colors.accent
                     : colors.textSecondary,
               ),
             ),
           const Spacer(),
-          if (recording.state == RecordingState.recording ||
-              recording.state == RecordingState.paused)
+          if (recording.status == RecordingStatus.recording ||
+              recording.status == RecordingStatus.paused)
             IconButton(
               icon: Icon(
-                recording.state == RecordingState.paused
+                recording.status == RecordingStatus.paused
                     ? Icons.play_arrow
                     : Icons.pause,
                 color: colors.textPrimary,
               ),
               onPressed: () {
                 final notifier = ref.read(recordingProvider.notifier);
-                if (recording.state == RecordingState.paused) {
-                  notifier.resume();
+                if (recording.status == RecordingStatus.paused) {
+                  notifier.resumeRecording();
                 } else {
-                  notifier.pause();
+                  notifier.pauseRecording();
                 }
               },
             )
@@ -123,7 +124,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             flex: 2,
             child: Center(
               child: Text(
-                recording.state == RecordingState.idle
+                recording.status == RecordingStatus.idle
                     ? 'Tap to start recording'
                     : 'Listening...',
                 style:
@@ -141,22 +142,22 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       child: Column(
         children: [
           RecordButton(
-            isRecording: recording.state == RecordingState.recording,
+            isRecording: recording.status == RecordingStatus.recording,
             onTap: () {
               final notifier = ref.read(recordingProvider.notifier);
-              switch (recording.state) {
-                case RecordingState.idle:
-                  notifier.start();
-                case RecordingState.recording:
-                  notifier.stop();
-                case RecordingState.paused:
-                  notifier.stop();
-                case RecordingState.stopped:
+              switch (recording.status) {
+                case RecordingStatus.idle:
+                  notifier.startRecording();
+                case RecordingStatus.recording:
+                  notifier.stopRecording();
+                case RecordingStatus.paused:
+                  notifier.stopRecording();
+                case RecordingStatus.stopped:
                   break;
               }
             },
           ),
-          if (recording.state == RecordingState.recording)
+          if (recording.status == RecordingStatus.recording)
             Padding(
               padding: const EdgeInsets.only(top: Spacing.md),
               child: Text(

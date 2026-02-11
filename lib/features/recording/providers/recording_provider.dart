@@ -1,144 +1,180 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum RecordingState { idle, recording, paused, stopped }
+import '../../../core/ai/mock_stt_engine.dart';
+import '../../../core/ai/stt_engine.dart';
+import '../domain/recording_state.dart';
 
-class RecordingSession {
-  final RecordingState state;
-  final Duration elapsed;
-  final String transcript;
-  final String partialTranscript;
+/// Provider for the STT engine - can be overridden in tests/production
+final sttEngineProvider = Provider<STTEngine>((ref) {
+  // Default to mock engine for Phase 2 development
+  // Will be replaced with SherpaSTTEngine in production
+  return MockSTTEngine();
+});
 
-  const RecordingSession({
-    this.state = RecordingState.idle,
-    this.elapsed = Duration.zero,
-    this.transcript = '',
-    this.partialTranscript = '',
-  });
-
-  RecordingSession copyWith({
-    RecordingState? state,
-    Duration? elapsed,
-    String? transcript,
-    String? partialTranscript,
-  }) {
-    return RecordingSession(
-      state: state ?? this.state,
-      elapsed: elapsed ?? this.elapsed,
-      transcript: transcript ?? this.transcript,
-      partialTranscript: partialTranscript ?? this.partialTranscript,
-    );
-  }
-}
-
-final recordingProvider =
-    StateNotifierProvider<RecordingNotifier, RecordingSession>((ref) {
-  return RecordingNotifier();
+/// Main recording provider - manages recording state and lifecycle
+final recordingProvider = StateNotifierProvider<RecordingNotifier, RecordingSession>((ref) {
+  return RecordingNotifier(ref);
 });
 
 class RecordingNotifier extends StateNotifier<RecordingSession> {
-  RecordingNotifier() : super(const RecordingSession());
+  RecordingNotifier(this.ref) : super(const RecordingSession());
 
-  Timer? _timer;
-  Timer? _mockSttTimer;
-  int _mockWordIndex = 0;
+  final Ref ref;
 
-  static const _mockWords = [
-    'I need to',
-    'remember to',
-    'pick up',
-    'groceries',
-    'after work',
-    'today.',
-    'Also,',
-    'I should',
-    'call the',
-    'dentist about',
-    'that appointment',
-    'next week.',
-  ];
+  late final STTEngine _sttEngine;
 
-  void start() {
-    state = state.copyWith(
-      state: RecordingState.recording,
-      elapsed: Duration.zero,
-      transcript: '',
-      partialTranscript: '',
-    );
-    _mockWordIndex = 0;
-    _startTimer();
-    _startMockStt();
+  Timer? _elapsedTimer;
+  StreamSubscription<String>? _transcriptionSubscription;
+
+  // Placeholder for audio stream (will be provided by actual recording)
+  StreamController<List<int>>? _audioStreamController;
+
+  /// Start recording and transcription
+  Future<void> startRecording() async {
+    try {
+      // Initialize STT engine
+      _sttEngine = ref.read(sttEngineProvider);
+      await _sttEngine.initialize('');
+
+      // Reset state
+      state = const RecordingSession();
+
+      // Create audio stream controller for mock
+      _audioStreamController = StreamController<List<int>>();
+
+      // Update state to recording
+      state = state.copyWith(status: RecordingStatus.recording);
+
+      // Start elapsed time timer (updates every 100ms)
+      _startElapsedTimer();
+
+      // Start transcription stream from audio
+      _startTranscription(_audioStreamController!.stream);
+    } catch (e) {
+      state = state.copyWith(status: RecordingStatus.idle);
+      rethrow;
+    }
   }
 
-  void pause() {
-    state = state.copyWith(state: RecordingState.paused);
-    _timer?.cancel();
-    _mockSttTimer?.cancel();
+  /// Pause recording (audio and transcription)
+  Future<void> pauseRecording() async {
+    try {
+      _elapsedTimer?.cancel();
+      _transcriptionSubscription?.pause();
+      state = state.copyWith(status: RecordingStatus.paused);
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  void resume() {
-    state = state.copyWith(state: RecordingState.recording);
-    _startTimer();
-    _startMockStt();
+  /// Resume recording from pause
+  Future<void> resumeRecording() async {
+    try {
+      state = state.copyWith(status: RecordingStatus.recording);
+      _startElapsedTimer();
+      _transcriptionSubscription?.resume();
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  void stop() {
-    _timer?.cancel();
-    _mockSttTimer?.cancel();
+  /// Stop recording and finalize transcript
+  Future<String> stopRecording() async {
+    try {
+      _elapsedTimer?.cancel();
+      _transcriptionSubscription?.cancel();
+      _audioStreamController?.close();
 
-    // Finalize any partial transcript
-    final finalTranscript =
-        '${state.transcript}${state.partialTranscript}'.trim();
-    state = state.copyWith(
-      state: RecordingState.stopped,
-      transcript:
-          finalTranscript.isEmpty ? _mockWords.join(' ') : finalTranscript,
-      partialTranscript: '',
-    );
-  }
+      // Combine finalized and partial transcripts
+      final finalTranscript = state.transcript.isEmpty
+          ? state.partialTranscript
+          : '${state.transcript} ${state.partialTranscript}'.trim();
 
-  void reset() {
-    _timer?.cancel();
-    _mockSttTimer?.cancel();
-    state = const RecordingSession();
-    _mockWordIndex = 0;
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       state = state.copyWith(
-        elapsed: state.elapsed + const Duration(seconds: 1),
+        status: RecordingStatus.stopped,
+        transcript: finalTranscript,
+        partialTranscript: '',
+        audioDuration: state.elapsed,
+      );
+
+      await _sttEngine.dispose();
+      return finalTranscript;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Reset to idle state
+  void reset() {
+    _elapsedTimer?.cancel();
+    _transcriptionSubscription?.cancel();
+    _audioStreamController?.close();
+    state = const RecordingSession();
+  }
+
+  /// Start timer for elapsed time (updates every 100ms)
+  void _startElapsedTimer() {
+    _elapsedTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (state.status != RecordingStatus.recording) return;
+      state = state.copyWith(
+        elapsed: state.elapsed + const Duration(milliseconds: 100),
       );
     });
   }
 
-  void _startMockStt() {
-    _mockSttTimer =
-        Timer.periodic(const Duration(milliseconds: 600), (_) {
-      if (_mockWordIndex < _mockWords.length) {
-        final word = _mockWords[_mockWordIndex];
-        _mockWordIndex++;
+  /// Start listening to transcription stream from STT engine
+  void _startTranscription(Stream<List<int>> audioStream) {
+    try {
+      _transcriptionSubscription?.cancel();
 
-        // Every 3 words, finalize the partial into the transcript
-        if (_mockWordIndex % 4 == 0) {
-          state = state.copyWith(
-            transcript:
-                '${'${state.transcript}${state.partialTranscript} $word'.trim()} ',
-            partialTranscript: '',
-          );
-        } else {
-          state = state.copyWith(
-            partialTranscript: '${state.partialTranscript} $word'.trim(),
-          );
-        }
-      }
-    });
+      // Create transcription stream from STT engine
+      final transcriptionStream = _sttEngine.transcribeStream(audioStream);
+
+      _transcriptionSubscription = transcriptionStream.listen(
+        (transcript) {
+          if (state.status != RecordingStatus.recording) return;
+
+          // Update state with new transcript
+          // If ends with period/space, it's finalized; otherwise partial
+          if (transcript.endsWith('.') || transcript.endsWith(' ')) {
+            state = state.copyWith(
+              transcript: state.transcript.isEmpty
+                  ? transcript.trim()
+                  : '${state.transcript} ${transcript.trim()}',
+              partialTranscript: '',
+            );
+          } else {
+            state = state.copyWith(partialTranscript: transcript);
+          }
+        },
+        onError: (error) {
+          state = state.copyWith(status: RecordingStatus.stopped);
+        },
+        onDone: () {
+          // Finalize partial transcript on stream end
+          if (state.partialTranscript.isNotEmpty) {
+            state = state.copyWith(
+              transcript: state.transcript.isEmpty
+                  ? state.partialTranscript
+                  : '${state.transcript} ${state.partialTranscript}',
+              partialTranscript: '',
+            );
+          }
+        },
+      );
+    } catch (e) {
+      state = state.copyWith(status: RecordingStatus.idle);
+      rethrow;
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _mockSttTimer?.cancel();
+    _elapsedTimer?.cancel();
+    _transcriptionSubscription?.cancel();
+    _audioStreamController?.close();
     super.dispose();
   }
 }
