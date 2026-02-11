@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
-import 'capture_bar.dart';
+import 'universal_input_bar.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.child});
@@ -10,7 +10,7 @@ class AppShell extends StatelessWidget {
 
   static const _tabs = [
     (path: '/home', label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home),
-    (path: '/search', label: 'Search', icon: Icons.search_outlined, activeIcon: Icons.search),
+    (path: '/folders', label: 'Folders', icon: Icons.folder_outlined, activeIcon: Icons.folder),
     (path: '/ask', label: 'Ask', icon: Icons.chat_bubble_outline, activeIcon: Icons.chat_bubble),
     (path: '/settings', label: 'Settings', icon: Icons.settings_outlined, activeIcon: Icons.settings),
   ];
@@ -27,74 +27,30 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final index = _currentIndex(context);
-    final isHome = index == 0;
+    final showInputBar = index != 3; // Show on Home, Folders, Ask; NOT on Settings
 
     return Scaffold(
       body: child,
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isHome) const CaptureBar(),
-          Container(
-            color: colors.surface,
-            height: 64,
-            child: Row(
-              children: [
-                for (var i = 0; i < _tabs.length; i++)
-                  Expanded(
-                    child: _NavItem(
-                      icon: i == index ? _tabs[i].activeIcon : _tabs[i].icon,
-                      label: _tabs[i].label,
-                      selected: i == index,
-                      colors: colors,
-                      onTap: () => context.go(_tabs[i].path),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.colors,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final AppColors colors;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 24,
-            color: selected ? colors.accent : colors.textTertiary,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: selected ? colors.accent : colors.textTertiary,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            ),
+          if (showInputBar) const UniversalInputBar(),
+          BottomNavigationBar(
+            currentIndex: index,
+            onTap: (i) => context.go(_tabs[i].path),
+            backgroundColor: colors.surface,
+            selectedItemColor: colors.accent,
+            unselectedItemColor: colors.textTertiary,
+            type: BottomNavigationBarType.fixed,
+            elevation: 0,
+            items: [
+              for (var i = 0; i < _tabs.length; i++)
+                BottomNavigationBarItem(
+                  icon: Icon(_tabs[i].icon),
+                  activeIcon: Icon(_tabs[i].activeIcon),
+                  label: _tabs[i].label,
+                ),
+            ],
           ),
         ],
       ),

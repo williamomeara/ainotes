@@ -46,7 +46,7 @@ class HomeScreen extends ConsumerWidget {
               return _buildGroupedMasonry(notes, colors);
             },
           ),
-          // Bottom padding for capture bar + nav (52 + 64 + spacing)
+          // Bottom padding for input bar + nav bar (handled by BottomNavigationBar + SafeArea)
           const SliverToBoxAdapter(child: SizedBox(height: 140)),
         ],
       ),

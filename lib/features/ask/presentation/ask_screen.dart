@@ -14,11 +14,8 @@ class AskScreen extends ConsumerStatefulWidget {
 }
 
 class _AskScreenState extends ConsumerState<AskScreen> {
-  final _controller = TextEditingController();
-
   @override
   void dispose() {
-    _controller.dispose();
     super.dispose();
   }
 
@@ -61,9 +58,6 @@ class _AskScreenState extends ConsumerState<AskScreen> {
                     },
                   ),
           ),
-
-          // Input bar
-          _buildInputBar(colors),
         ],
       ),
     );
@@ -105,56 +99,9 @@ class _AskScreenState extends ConsumerState<AskScreen> {
       backgroundColor: colors.surface,
       side: BorderSide(color: colors.surfaceVariant),
       onPressed: () {
-        _controller.text = text;
-        _send();
+        ref.read(chatProvider.notifier).sendMessage(text);
       },
     );
   }
 
-  Widget _buildInputBar(AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(Spacing.md),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(
-          top: BorderSide(color: colors.surfaceVariant.withValues(alpha: 0.5)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              style: AppTypography.body.copyWith(color: colors.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Ask a question...',
-                hintStyle: TextStyle(color: colors.textTertiary),
-                filled: true,
-                fillColor: colors.surfaceVariant.withValues(alpha: 0.3),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(Radii.xl),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: Spacing.lg, vertical: Spacing.md),
-              ),
-              onSubmitted: (_) => _send(),
-            ),
-          ),
-          const SizedBox(width: Spacing.sm),
-          IconButton(
-            icon: Icon(Icons.send, color: colors.accent),
-            onPressed: _send,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    _controller.clear();
-    ref.read(chatProvider.notifier).sendMessage(text);
-  }
 }

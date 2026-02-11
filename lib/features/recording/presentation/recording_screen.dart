@@ -6,7 +6,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../notes/domain/note_category.dart';
-import '../../notes/providers/notes_provider.dart';
+import '../../unified_input/providers/unified_input_provider.dart';
 import 'record_button.dart';
 import 'waveform_visualizer.dart';
 import 'live_transcript.dart';
@@ -227,10 +227,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
               const SizedBox(width: Spacing.md),
               Expanded(
                 child: GradientButton(
-                  onPressed: _saveAndProcess,
+                  onPressed: _send,
                   padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                   child: Center(
-                    child: Text('Save & Process',
+                    child: Text('Send',
                         style: AppTypography.label
                             .copyWith(color: colors.textPrimary)),
                   ),
@@ -243,22 +243,23 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     );
   }
 
-  Future<void> _saveAndProcess() async {
+  void _send() async {
     final text = _transcriptController.text.trim();
     if (text.isEmpty) return;
 
-    final note = await ref.read(notesProvider.notifier).createNote(
-          originalText: text,
-          rewrittenText: text,
-          category: NoteCategory.general,
-          confidence: 0.0,
-          source: NoteSource.voice,
-        );
+    // Set context for navigation in UnifiedInputProvider
+    ref.read(unifiedInputProvider.notifier).setContext(context);
+
+    // Submit to unified input provider
+    await ref.read(unifiedInputProvider.notifier).submitInput(
+      text,
+      source: NoteSource.voice,
+    );
 
     ref.read(recordingProvider.notifier).reset();
 
-    if (note != null && mounted) {
-      context.go('/processing/${note.id}');
+    if (mounted) {
+      context.go('/home');
     }
   }
 

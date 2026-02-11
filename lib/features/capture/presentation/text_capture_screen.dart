@@ -6,7 +6,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../notes/domain/note_category.dart';
-import '../../notes/providers/notes_provider.dart';
+import '../../unified_input/providers/unified_input_provider.dart';
 
 class TextCaptureScreen extends ConsumerStatefulWidget {
   const TextCaptureScreen({super.key});
@@ -40,10 +40,10 @@ class _TextCaptureScreenState extends ConsumerState<TextCaptureScreen> {
           Padding(
             padding: const EdgeInsets.only(right: Spacing.sm),
             child: GradientButton(
-              onPressed: _save,
+              onPressed: _send,
               padding: const EdgeInsets.symmetric(
                   horizontal: Spacing.lg, vertical: Spacing.sm),
-              child: Text('Save',
+              child: Text('Send',
                   style: AppTypography.label
                       .copyWith(color: colors.textPrimary)),
             ),
@@ -69,19 +69,20 @@ class _TextCaptureScreenState extends ConsumerState<TextCaptureScreen> {
     );
   }
 
-  Future<void> _save() async {
+  void _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final note = await ref.read(notesProvider.notifier).createNote(
-          originalText: text,
-          rewrittenText: text,
-          category: NoteCategory.general,
-          confidence: 1.0,
-          source: NoteSource.text,
-        );
+    // Set context for navigation in UnifiedInputProvider
+    ref.read(unifiedInputProvider.notifier).setContext(context);
 
-    if (note != null && mounted) {
+    // Submit to unified input provider
+    await ref.read(unifiedInputProvider.notifier).submitInput(
+      text,
+      source: NoteSource.text,
+    );
+
+    if (mounted) {
       context.go('/home');
     }
   }

@@ -25,22 +25,25 @@ class MessageBubble extends StatelessWidget {
     return Align(
       alignment: Alignment.centerRight,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 280),
+        constraints: const BoxConstraints(maxWidth: 340),
         margin: const EdgeInsets.only(
-            left: Spacing.xxxl, bottom: Spacing.sm),
-        padding: const EdgeInsets.all(Spacing.md),
+            left: Spacing.xl, bottom: Spacing.md),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.lg, vertical: Spacing.lg),
         decoration: BoxDecoration(
           gradient: colors.accentGradient,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(Radii.lg),
-            topRight: Radius.circular(Radii.lg),
-            bottomLeft: Radius.circular(Radii.lg),
-            bottomRight: Radius.circular(Radii.sm),
+            topLeft: Radius.circular(Radii.xl),
+            topRight: Radius.circular(Radii.xl),
+            bottomLeft: Radius.circular(Radii.xl),
+            bottomRight: Radius.circular(Radii.md),
           ),
         ),
         child: Text(
           text,
-          style: AppTypography.body.copyWith(color: colors.textPrimary),
+          style: AppTypography.body.copyWith(
+              color: colors.textPrimary,
+              height: 1.4),
         ),
       ),
     );
@@ -51,17 +54,18 @@ class MessageBubble extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 280),
+        constraints: const BoxConstraints(maxWidth: 340),
         margin: const EdgeInsets.only(
-            right: Spacing.xxxl, bottom: Spacing.sm),
-        padding: const EdgeInsets.all(Spacing.md),
+            right: Spacing.xl, bottom: Spacing.md),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.lg, vertical: Spacing.lg),
         decoration: BoxDecoration(
           color: colors.surface,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(Radii.lg),
-            topRight: Radius.circular(Radii.lg),
-            bottomLeft: Radius.circular(Radii.sm),
-            bottomRight: Radius.circular(Radii.lg),
+            topLeft: Radius.circular(Radii.xl),
+            topRight: Radius.circular(Radii.xl),
+            bottomLeft: Radius.circular(Radii.md),
+            bottomRight: Radius.circular(Radii.xl),
           ),
         ),
         child: Column(
@@ -69,12 +73,14 @@ class MessageBubble extends StatelessWidget {
           children: [
             Text(
               text,
-              style: AppTypography.body.copyWith(color: colors.textPrimary),
+              style: AppTypography.body.copyWith(
+                  color: colors.textPrimary,
+                  height: 1.4),
             ),
             if (sourceNoteIds.isNotEmpty) ...[
-              const SizedBox(height: Spacing.sm),
+              const SizedBox(height: Spacing.md),
               Wrap(
-                spacing: Spacing.xs,
+                spacing: Spacing.sm,
                 children: sourceNoteIds
                     .map((id) => ActionChip(
                           label: Text('Source',

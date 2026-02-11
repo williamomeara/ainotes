@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/home/presentation/home_screen.dart';
-import '../../features/search/presentation/search_screen.dart';
+import '../../features/folders/presentation/folders_screen.dart';
 import '../../features/ask/presentation/ask_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/notes/presentation/note_detail_screen.dart';
@@ -35,9 +35,9 @@ GoRouter createRouter({required bool onboardingComplete}) {
             ),
           ),
           GoRoute(
-            path: '/search',
+            path: '/folders',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: SearchScreen(),
+              child: FoldersScreen(),
             ),
           ),
           GoRoute(
