@@ -21,3 +21,19 @@ abstract final class Durations {
   static const Duration medium = Duration(milliseconds: 300);
   static const Duration slow = Duration(milliseconds: 500);
 }
+
+abstract final class Elevation {
+  static const double none = 0;
+  static const double low = 1;
+  static const double medium = 4;
+  static const double high = 8;
+}
+
+abstract final class IconSizes {
+  static const double xs = 14;
+  static const double sm = 18;
+  static const double md = 24;
+  static const double lg = 32;
+  static const double xl = 48;
+  static const double huge = 80;
+}

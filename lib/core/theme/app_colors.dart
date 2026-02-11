@@ -10,6 +10,10 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.textTertiary,
     required this.accent,
     required this.accentAlt,
+    required this.success,
+    required this.warning,
+    required this.error,
+    required this.recording,
     required this.shopping,
     required this.todos,
     required this.ideas,
@@ -24,6 +28,10 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color textTertiary;
   final Color accent;
   final Color accentAlt;
+  final Color success;
+  final Color warning;
+  final Color error;
+  final Color recording;
   final Color shopping;
   final Color todos;
   final Color ideas;
@@ -38,6 +46,10 @@ class AppColors extends ThemeExtension<AppColors> {
     textTertiary: Color(0xFFFDBA74),
     accent: Color(0xFFC2410C),
     accentAlt: Color(0xFFB45309),
+    success: Color(0xFF22C55E),
+    warning: Color(0xFFEAB308),
+    error: Color(0xFFEF4444),
+    recording: Color(0xFFEF4444),
     shopping: Color(0xFF22C55E),
     todos: Color(0xFF3B82F6),
     ideas: Color(0xFFA855F7),
@@ -58,6 +70,10 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? textTertiary,
     Color? accent,
     Color? accentAlt,
+    Color? success,
+    Color? warning,
+    Color? error,
+    Color? recording,
     Color? shopping,
     Color? todos,
     Color? ideas,
@@ -72,6 +88,10 @@ class AppColors extends ThemeExtension<AppColors> {
       textTertiary: textTertiary ?? this.textTertiary,
       accent: accent ?? this.accent,
       accentAlt: accentAlt ?? this.accentAlt,
+      success: success ?? this.success,
+      warning: warning ?? this.warning,
+      error: error ?? this.error,
+      recording: recording ?? this.recording,
       shopping: shopping ?? this.shopping,
       todos: todos ?? this.todos,
       ideas: ideas ?? this.ideas,
@@ -91,6 +111,10 @@ class AppColors extends ThemeExtension<AppColors> {
       textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
       accent: Color.lerp(accent, other.accent, t)!,
       accentAlt: Color.lerp(accentAlt, other.accentAlt, t)!,
+      success: Color.lerp(success, other.success, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+      error: Color.lerp(error, other.error, t)!,
+      recording: Color.lerp(recording, other.recording, t)!,
       shopping: Color.lerp(shopping, other.shopping, t)!,
       todos: Color.lerp(todos, other.todos, t)!,
       ideas: Color.lerp(ideas, other.ideas, t)!,

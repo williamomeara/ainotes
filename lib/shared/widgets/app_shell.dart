@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import 'capture_bar.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.child});
@@ -11,7 +12,7 @@ class AppShell extends StatelessWidget {
     (path: '/home', label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home),
     (path: '/search', label: 'Search', icon: Icons.search_outlined, activeIcon: Icons.search),
     (path: '/ask', label: 'Ask', icon: Icons.chat_bubble_outline, activeIcon: Icons.chat_bubble),
-    (path: '/organize', label: 'Organize', icon: Icons.folder_outlined, activeIcon: Icons.folder),
+    (path: '/settings', label: 'Settings', icon: Icons.settings_outlined, activeIcon: Icons.settings),
   ];
 
   int _currentIndex(BuildContext context) {
@@ -26,43 +27,33 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final index = _currentIndex(context);
+    final isHome = index == 0;
 
     return Scaffold(
       body: child,
-      floatingActionButton: SizedBox(
-        width: 64,
-        height: 64,
-        child: FloatingActionButton(
-          onPressed: () {
-            // TODO: Phase 2 — open recording sheet
-          },
-          elevation: 4,
-          child: const Icon(Icons.mic, size: 28),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        color: colors.surface,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        padding: EdgeInsets.zero,
-        height: 64,
-        child: Row(
-          children: [
-            for (var i = 0; i < _tabs.length; i++) ...[
-              if (i == 2) const Spacer(), // space for FAB
-              Expanded(
-                child: _NavItem(
-                  icon: i == index ? _tabs[i].activeIcon : _tabs[i].icon,
-                  label: _tabs[i].label,
-                  selected: i == index,
-                  colors: colors,
-                  onTap: () => context.go(_tabs[i].path),
-                ),
-              ),
-            ],
-          ],
-        ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isHome) const CaptureBar(),
+          Container(
+            color: colors.surface,
+            height: 64,
+            child: Row(
+              children: [
+                for (var i = 0; i < _tabs.length; i++)
+                  Expanded(
+                    child: _NavItem(
+                      icon: i == index ? _tabs[i].activeIcon : _tabs[i].icon,
+                      label: _tabs[i].label,
+                      selected: i == index,
+                      colors: colors,
+                      onTap: () => context.go(_tabs[i].path),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

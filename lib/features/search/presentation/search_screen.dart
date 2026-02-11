@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../notes/domain/note.dart';
+import '../../notes/domain/note_category.dart';
 import '../../notes/providers/notes_provider.dart';
 import '../../home/presentation/note_card.dart';
 
@@ -21,11 +22,24 @@ final _searchResultsProvider = Provider<AsyncValue<List<Note>>>((ref) {
       .toList());
 });
 
-class SearchScreen extends ConsumerWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends ConsumerState<SearchScreen> {
+  final _searchController = SearchController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final results = ref.watch(_searchResultsProvider);
     final query = ref.watch(_searchQueryProvider);
@@ -35,59 +49,99 @@ class SearchScreen extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(Spacing.lg),
-            child: TextField(
+            child: SearchBar(
+              controller: _searchController,
+              hintText: 'Search notes...',
+              hintStyle: WidgetStatePropertyAll(
+                  AppTypography.body.copyWith(color: colors.textTertiary)),
+              textStyle: WidgetStatePropertyAll(
+                  AppTypography.body.copyWith(color: colors.textPrimary)),
+              leading: Padding(
+                padding: const EdgeInsets.only(left: Spacing.sm),
+                child: Icon(Icons.search, color: colors.textTertiary),
+              ),
+              backgroundColor: WidgetStatePropertyAll(colors.surface),
+              elevation: const WidgetStatePropertyAll(0),
+              shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.xl),
+                side: BorderSide(
+                    color: colors.surfaceVariant.withValues(alpha: 0.5)),
+              )),
               onChanged: (v) =>
                   ref.read(_searchQueryProvider.notifier).state = v,
-              style: AppTypography.body.copyWith(color: colors.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search notes...',
-                hintStyle: TextStyle(color: colors.textTertiary),
-                prefixIcon: Icon(Icons.search, color: colors.textTertiary),
-                filled: true,
-                fillColor: colors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(Radii.md),
-                  borderSide: BorderSide.none,
-                ),
-              ),
             ),
           ),
           Expanded(
-            child: results.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (notes) {
-                if (query.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'Search your notes',
-                      style: AppTypography.body
-                          .copyWith(color: colors.textTertiary),
-                    ),
-                  );
-                }
-                if (notes.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No results found',
-                      style: AppTypography.body
-                          .copyWith(color: colors.textTertiary),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: Spacing.lg),
-                  itemCount: notes.length,
-                  itemBuilder: (context, index) => Padding(
-                    padding:
-                        const EdgeInsets.only(bottom: Spacing.sm),
-                    child: NoteCard(note: notes[index]),
+            child: query.isEmpty
+                ? _emptyQueryState(colors)
+                : results.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                    data: (notes) {
+                      if (notes.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'No results found',
+                            style: AppTypography.body
+                                .copyWith(color: colors.textTertiary),
+                          ),
+                        );
+                      }
+                      return ListView(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Spacing.lg)
+                            .copyWith(bottom: 140),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: Spacing.sm),
+                            child: Text('Keyword matches',
+                                style: AppTypography.label
+                                    .copyWith(color: colors.textTertiary)),
+                          ),
+                          for (final note in notes)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: Spacing.sm),
+                              child: NoteCard(note: note),
+                            ),
+                        ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyQueryState(AppColors colors) {
+    return Padding(
+      padding: const EdgeInsets.all(Spacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Categories',
+              style: AppTypography.label.copyWith(color: colors.textTertiary)),
+          const SizedBox(height: Spacing.md),
+          Wrap(
+            spacing: Spacing.sm,
+            runSpacing: Spacing.sm,
+            children: NoteCategory.values.map((cat) {
+              final catColor = cat.color(colors);
+              return FilterChip(
+                label: Text(cat.label,
+                    style:
+                        AppTypography.caption.copyWith(color: catColor)),
+                avatar: Icon(cat.icon, size: IconSizes.xs, color: catColor),
+                backgroundColor: catColor.withValues(alpha: 0.1),
+                side: BorderSide.none,
+                onSelected: (_) {
+                  _searchController.text = cat.label;
+                  ref.read(_searchQueryProvider.notifier).state = cat.label;
+                },
+              );
+            }).toList(),
           ),
         ],
       ),
