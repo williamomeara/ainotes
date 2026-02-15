@@ -1,22 +1,40 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/ai/embedding_engine.dart';
+import '../../../core/ai/gemma_embedding_engine.dart';
+import '../../../core/ai/llamadart_engine.dart';
 import '../../../core/ai/llm_engine.dart';
 import '../../../core/ai/mock_embedding_engine.dart';
 import '../../../core/ai/mock_llm_engine.dart';
 import '../../../core/storage/vector_store.dart';
+import '../../models_manager/domain/download_state.dart';
+import '../../models_manager/providers/model_manager_provider.dart';
 import '../../notes/domain/note.dart';
 import '../../notes/domain/note_category.dart';
 import '../../notes/providers/notes_provider.dart';
 import '../domain/processing_pipeline.dart';
 
 /// Provides a singleton LLM engine.
+/// Uses real LlamaDartEngine when model is downloaded, MockLLMEngine otherwise.
 final llmEngineProvider = Provider<LLMEngine>((ref) {
+  final modelState = ref.watch(modelManagerProvider);
+  final llmState = modelState.getDownloadState('qwen-2.5-1.5b');
+  if (llmState is Ready && llmState.localPath != 'mock://') {
+    return LlamaDartEngine();
+  }
   return MockLLMEngine();
 });
 
 /// Provides a singleton embedding engine.
+/// Uses real GemmaEmbeddingEngine when model is installed, MockEmbeddingEngine otherwise.
 final embeddingEngineProvider = Provider<EmbeddingEngine>((ref) {
+  final modelState = ref.watch(modelManagerProvider);
+  final embState = modelState.getDownloadState('embedding-gemma-300m');
+  if (embState is Ready && embState.localPath != 'mock://') {
+    return GemmaEmbeddingEngine();
+  }
   return MockEmbeddingEngine();
 });
 
@@ -83,10 +101,45 @@ class ProcessingJobNotifier extends StateNotifier<ProcessingJobState> {
 
     try {
       final pipeline = ref.read(processingPipelineProvider);
+      final llmEngine = ref.read(llmEngineProvider);
+      final embeddingEngine = ref.read(embeddingEngineProvider);
 
-      // Ensure engines are loaded
-      await ref.read(llmEngineProvider).loadModel('');
-      await ref.read(embeddingEngineProvider).loadModel('');
+      // Load models with real paths when available
+      final modelState = ref.read(modelManagerProvider);
+      final llmState = modelState.getDownloadState('qwen-2.5-1.5b');
+      final embState = modelState.getDownloadState('embedding-gemma-300m');
+
+      // Load LLM model only if path is valid
+      if (llmState is Ready && llmState.localPath.isNotEmpty) {
+        if (llmEngine is! MockLLMEngine) {
+          final modelFile = File(llmState.localPath);
+          if (await modelFile.exists()) {
+            try {
+              await llmEngine.loadModel(llmState.localPath);
+            } catch (e) {
+              throw Exception('Failed to load LLM: $e');
+            }
+          } else {
+            throw Exception(
+                'LLM model file not found at ${llmState.localPath}');
+          }
+        }
+      } else if (llmEngine is! MockLLMEngine) {
+        throw Exception('LLM model not downloaded');
+      }
+
+      // Load embedding model (GemmaEmbeddingEngine uses internal path)
+      if (embState is Ready && embState.localPath.isNotEmpty) {
+        if (embeddingEngine is! MockEmbeddingEngine) {
+          try {
+            await embeddingEngine.loadModel(embState.localPath);
+          } catch (e) {
+            throw Exception('Failed to load embedder: $e');
+          }
+        }
+      } else if (embeddingEngine is! MockEmbeddingEngine) {
+        throw Exception('Embedding model not installed');
+      }
 
       // Run processing pipeline
       final result = await pipeline.process(

@@ -35,10 +35,13 @@ dependencies:
   record: ^6.2.0
   permission_handler: ^12.0.1
 
-  # On-device AI — native packages added when model files are available
+  # On-device AI
   # sherpa_onnx: ^1.12.24  # STT (Moonshine) — enable with model files
-  # llamadart: ^0.4.0      # LLM (Qwen 2.5) — enable with GGUF model
-  # flutter_gemma: ^latest  # Embeddings — enable with model files
+  llamadart: ^0.4.0         # LLM inference (Qwen 2.5 via GGUF)
+  flutter_gemma: ^0.12.3    # Embeddings (EmbeddingGemma 300M, 768D)
+
+  # Background model downloads (WorkManager/URLSession)
+  background_downloader: ^9.5.2
 
   # Preferences
   shared_preferences: ^2.3.4

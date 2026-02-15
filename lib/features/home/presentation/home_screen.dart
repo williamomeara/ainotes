@@ -4,6 +4,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../../shared/widgets/error_state_widget.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../notes/providers/notes_provider.dart';
 import 'note_card.dart';
@@ -36,9 +37,8 @@ class HomeScreen extends ConsumerWidget {
               child: Center(child: CircularProgressIndicator()),
             ),
             error: (e, _) => SliverFillRemaining(
-              child: Center(
-                child: Text('Error: $e',
-                    style: TextStyle(color: colors.textSecondary)),
+              child: ErrorStateWidget.noteLoadFailure(
+                () => ref.refresh(notesProvider),
               ),
             ),
             data: (notes) {

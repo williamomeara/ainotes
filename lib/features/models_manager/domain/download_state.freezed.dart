@@ -21,6 +21,7 @@ mixin _$DownloadState {
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
     required TResult Function(double progress) downloading,
+    required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
   }) => throw _privateConstructorUsedError;
@@ -28,6 +29,7 @@ mixin _$DownloadState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
     TResult? Function(double progress)? downloading,
+    TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
   }) => throw _privateConstructorUsedError;
@@ -35,6 +37,7 @@ mixin _$DownloadState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
     TResult Function(double progress)? downloading,
+    TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -43,6 +46,7 @@ mixin _$DownloadState {
   TResult map<TResult extends Object?>({
     required TResult Function(NotStarted value) notStarted,
     required TResult Function(Downloading value) downloading,
+    required TResult Function(Paused value) paused,
     required TResult Function(Ready value) ready,
     required TResult Function(DownloadError value) error,
   }) => throw _privateConstructorUsedError;
@@ -50,6 +54,7 @@ mixin _$DownloadState {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(NotStarted value)? notStarted,
     TResult? Function(Downloading value)? downloading,
+    TResult? Function(Paused value)? paused,
     TResult? Function(Ready value)? ready,
     TResult? Function(DownloadError value)? error,
   }) => throw _privateConstructorUsedError;
@@ -57,6 +62,7 @@ mixin _$DownloadState {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(NotStarted value)? notStarted,
     TResult Function(Downloading value)? downloading,
+    TResult Function(Paused value)? paused,
     TResult Function(Ready value)? ready,
     TResult Function(DownloadError value)? error,
     required TResult orElse(),
@@ -130,6 +136,7 @@ class _$NotStartedImpl implements NotStarted {
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
     required TResult Function(double progress) downloading,
+    required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
   }) {
@@ -141,6 +148,7 @@ class _$NotStartedImpl implements NotStarted {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
     TResult? Function(double progress)? downloading,
+    TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
   }) {
@@ -152,6 +160,7 @@ class _$NotStartedImpl implements NotStarted {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
     TResult Function(double progress)? downloading,
+    TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -167,6 +176,7 @@ class _$NotStartedImpl implements NotStarted {
   TResult map<TResult extends Object?>({
     required TResult Function(NotStarted value) notStarted,
     required TResult Function(Downloading value) downloading,
+    required TResult Function(Paused value) paused,
     required TResult Function(Ready value) ready,
     required TResult Function(DownloadError value) error,
   }) {
@@ -178,6 +188,7 @@ class _$NotStartedImpl implements NotStarted {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(NotStarted value)? notStarted,
     TResult? Function(Downloading value)? downloading,
+    TResult? Function(Paused value)? paused,
     TResult? Function(Ready value)? ready,
     TResult? Function(DownloadError value)? error,
   }) {
@@ -189,6 +200,7 @@ class _$NotStartedImpl implements NotStarted {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(NotStarted value)? notStarted,
     TResult Function(Downloading value)? downloading,
+    TResult Function(Paused value)? paused,
     TResult Function(Ready value)? ready,
     TResult Function(DownloadError value)? error,
     required TResult orElse(),
@@ -277,6 +289,7 @@ class _$DownloadingImpl implements Downloading {
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
     required TResult Function(double progress) downloading,
+    required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
   }) {
@@ -288,6 +301,7 @@ class _$DownloadingImpl implements Downloading {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
     TResult? Function(double progress)? downloading,
+    TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
   }) {
@@ -299,6 +313,7 @@ class _$DownloadingImpl implements Downloading {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
     TResult Function(double progress)? downloading,
+    TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -314,6 +329,7 @@ class _$DownloadingImpl implements Downloading {
   TResult map<TResult extends Object?>({
     required TResult Function(NotStarted value) notStarted,
     required TResult Function(Downloading value) downloading,
+    required TResult Function(Paused value) paused,
     required TResult Function(Ready value) ready,
     required TResult Function(DownloadError value) error,
   }) {
@@ -325,6 +341,7 @@ class _$DownloadingImpl implements Downloading {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(NotStarted value)? notStarted,
     TResult? Function(Downloading value)? downloading,
+    TResult? Function(Paused value)? paused,
     TResult? Function(Ready value)? ready,
     TResult? Function(DownloadError value)? error,
   }) {
@@ -336,6 +353,7 @@ class _$DownloadingImpl implements Downloading {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(NotStarted value)? notStarted,
     TResult Function(Downloading value)? downloading,
+    TResult Function(Paused value)? paused,
     TResult Function(Ready value)? ready,
     TResult Function(DownloadError value)? error,
     required TResult orElse(),
@@ -357,6 +375,167 @@ abstract class Downloading implements DownloadState {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DownloadingImplCopyWith<_$DownloadingImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$PausedImplCopyWith<$Res> {
+  factory _$$PausedImplCopyWith(
+    _$PausedImpl value,
+    $Res Function(_$PausedImpl) then,
+  ) = __$$PausedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({double progress});
+}
+
+/// @nodoc
+class __$$PausedImplCopyWithImpl<$Res>
+    extends _$DownloadStateCopyWithImpl<$Res, _$PausedImpl>
+    implements _$$PausedImplCopyWith<$Res> {
+  __$$PausedImplCopyWithImpl(
+    _$PausedImpl _value,
+    $Res Function(_$PausedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of DownloadState
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? progress = null}) {
+    return _then(
+      _$PausedImpl(
+        progress: null == progress
+            ? _value.progress
+            : progress // ignore: cast_nullable_to_non_nullable
+                  as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$PausedImpl implements Paused {
+  const _$PausedImpl({required this.progress});
+
+  @override
+  final double progress;
+
+  @override
+  String toString() {
+    return 'DownloadState.paused(progress: $progress)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PausedImpl &&
+            (identical(other.progress, progress) ||
+                other.progress == progress));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, progress);
+
+  /// Create a copy of DownloadState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PausedImplCopyWith<_$PausedImpl> get copyWith =>
+      __$$PausedImplCopyWithImpl<_$PausedImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() notStarted,
+    required TResult Function(double progress) downloading,
+    required TResult Function(double progress) paused,
+    required TResult Function(String localPath) ready,
+    required TResult Function(String message) error,
+  }) {
+    return paused(progress);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? notStarted,
+    TResult? Function(double progress)? downloading,
+    TResult? Function(double progress)? paused,
+    TResult? Function(String localPath)? ready,
+    TResult? Function(String message)? error,
+  }) {
+    return paused?.call(progress);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? notStarted,
+    TResult Function(double progress)? downloading,
+    TResult Function(double progress)? paused,
+    TResult Function(String localPath)? ready,
+    TResult Function(String message)? error,
+    required TResult orElse(),
+  }) {
+    if (paused != null) {
+      return paused(progress);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(NotStarted value) notStarted,
+    required TResult Function(Downloading value) downloading,
+    required TResult Function(Paused value) paused,
+    required TResult Function(Ready value) ready,
+    required TResult Function(DownloadError value) error,
+  }) {
+    return paused(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(NotStarted value)? notStarted,
+    TResult? Function(Downloading value)? downloading,
+    TResult? Function(Paused value)? paused,
+    TResult? Function(Ready value)? ready,
+    TResult? Function(DownloadError value)? error,
+  }) {
+    return paused?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(NotStarted value)? notStarted,
+    TResult Function(Downloading value)? downloading,
+    TResult Function(Paused value)? paused,
+    TResult Function(Ready value)? ready,
+    TResult Function(DownloadError value)? error,
+    required TResult orElse(),
+  }) {
+    if (paused != null) {
+      return paused(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class Paused implements DownloadState {
+  const factory Paused({required final double progress}) = _$PausedImpl;
+
+  double get progress;
+
+  /// Create a copy of DownloadState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PausedImplCopyWith<_$PausedImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -433,6 +612,7 @@ class _$ReadyImpl implements Ready {
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
     required TResult Function(double progress) downloading,
+    required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
   }) {
@@ -444,6 +624,7 @@ class _$ReadyImpl implements Ready {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
     TResult? Function(double progress)? downloading,
+    TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
   }) {
@@ -455,6 +636,7 @@ class _$ReadyImpl implements Ready {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
     TResult Function(double progress)? downloading,
+    TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -470,6 +652,7 @@ class _$ReadyImpl implements Ready {
   TResult map<TResult extends Object?>({
     required TResult Function(NotStarted value) notStarted,
     required TResult Function(Downloading value) downloading,
+    required TResult Function(Paused value) paused,
     required TResult Function(Ready value) ready,
     required TResult Function(DownloadError value) error,
   }) {
@@ -481,6 +664,7 @@ class _$ReadyImpl implements Ready {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(NotStarted value)? notStarted,
     TResult? Function(Downloading value)? downloading,
+    TResult? Function(Paused value)? paused,
     TResult? Function(Ready value)? ready,
     TResult? Function(DownloadError value)? error,
   }) {
@@ -492,6 +676,7 @@ class _$ReadyImpl implements Ready {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(NotStarted value)? notStarted,
     TResult Function(Downloading value)? downloading,
+    TResult Function(Paused value)? paused,
     TResult Function(Ready value)? ready,
     TResult Function(DownloadError value)? error,
     required TResult orElse(),
@@ -587,6 +772,7 @@ class _$DownloadErrorImpl implements DownloadError {
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
     required TResult Function(double progress) downloading,
+    required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
   }) {
@@ -598,6 +784,7 @@ class _$DownloadErrorImpl implements DownloadError {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
     TResult? Function(double progress)? downloading,
+    TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
   }) {
@@ -609,6 +796,7 @@ class _$DownloadErrorImpl implements DownloadError {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
     TResult Function(double progress)? downloading,
+    TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -624,6 +812,7 @@ class _$DownloadErrorImpl implements DownloadError {
   TResult map<TResult extends Object?>({
     required TResult Function(NotStarted value) notStarted,
     required TResult Function(Downloading value) downloading,
+    required TResult Function(Paused value) paused,
     required TResult Function(Ready value) ready,
     required TResult Function(DownloadError value) error,
   }) {
@@ -635,6 +824,7 @@ class _$DownloadErrorImpl implements DownloadError {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(NotStarted value)? notStarted,
     TResult? Function(Downloading value)? downloading,
+    TResult? Function(Paused value)? paused,
     TResult? Function(Ready value)? ready,
     TResult? Function(DownloadError value)? error,
   }) {
@@ -646,6 +836,7 @@ class _$DownloadErrorImpl implements DownloadError {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(NotStarted value)? notStarted,
     TResult Function(Downloading value)? downloading,
+    TResult Function(Paused value)? paused,
     TResult Function(Ready value)? ready,
     TResult Function(DownloadError value)? error,
     required TResult orElse(),

@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/gradient_button.dart';
+import '../../models_manager/domain/download_state.dart';
 import '../../models_manager/providers/model_manager_provider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -23,14 +24,37 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _modelsReady = false;
 
   @override
+  void initState() {
+    super.initState();
+    _checkInitialStates();
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
 
+  Future<void> _checkInitialStates() async {
+    // Check mic permission
+    final micStatus = await Permission.microphone.status;
+    setState(() => _micGranted = micStatus.isGranted);
+
+    // Check if models are ready
+    final modelState = ref.read(modelManagerProvider);
+    setState(() => _modelsReady = modelState.allModelsReady);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AppColors>()!;
+
+    // Watch model state for updates
+    ref.listen(modelManagerProvider, (previous, next) {
+      if (next.allModelsReady != _modelsReady) {
+        setState(() => _modelsReady = next.allModelsReady);
+      }
+    });
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -112,9 +136,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _downloadModels() async {
-    // Models are already "ready" via mock
-    final modelState = ref.read(modelManagerProvider);
-    setState(() => _modelsReady = modelState.allModelsReady);
+    // Navigate to model manager to download models
+    if (mounted) {
+      context.push('/models');
+    }
   }
 
   Future<void> _onNext() async {
@@ -124,9 +149,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
+      // Complete onboarding
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_complete', true);
-      if (mounted) context.go('/home');
+
+      if (mounted) {
+        // Force a complete app restart to recreate the router with new onboarding state
+        // This ensures the redirect logic works correctly
+        context.go('/home');
+      }
     }
   }
 }
@@ -301,7 +332,7 @@ class _PermissionPage extends StatelessWidget {
   }
 }
 
-class _ModelDownloadPage extends StatelessWidget {
+class _ModelDownloadPage extends ConsumerWidget {
   const _ModelDownloadPage({
     required this.colors,
     required this.modelsReady,
@@ -313,7 +344,13 @@ class _ModelDownloadPage extends StatelessWidget {
   final VoidCallback onDownload;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final modelState = ref.watch(modelManagerProvider);
+    final downloadingCount = modelState.downloadStates.values
+        .where((s) => s is Downloading || s is Paused)
+        .length;
+    final hasDownloading = downloadingCount > 0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Spacing.xxl),
       child: Column(
@@ -329,14 +366,18 @@ class _ModelDownloadPage extends StatelessWidget {
                   : colors.ideas.withValues(alpha: 0.15),
             ),
             child: Icon(
-              modelsReady ? Icons.check : Icons.psychology,
+              modelsReady
+                  ? Icons.check
+                  : (hasDownloading ? Icons.downloading : Icons.psychology),
               size: IconSizes.xl,
               color: modelsReady ? colors.success : colors.ideas,
             ),
           ),
           const SizedBox(height: Spacing.xxl),
           Text(
-            modelsReady ? 'Brain Ready!' : 'Setting Up Your Brain',
+            modelsReady
+                ? 'Brain Ready!'
+                : (hasDownloading ? 'Downloading...' : 'Setting Up Your Brain'),
             style: AppTypography.heading2.copyWith(color: colors.textPrimary),
             textAlign: TextAlign.center,
           ),
@@ -345,10 +386,14 @@ class _ModelDownloadPage extends StatelessWidget {
             modelsReady
                 ? 'All AI models are loaded and ready. '
                     'Speech recognition, text processing, and semantic search are available.'
-                : 'AiNotes uses on-device AI models for:\n\n'
-                    'Speech Recognition (~200MB)\n'
-                    'Text Processing (~900MB)\n'
-                    'Semantic Search (~200MB)',
+                : hasDownloading
+                    ? '${modelState.downloadedCount}/${modelState.models.length} models ready. '
+                        'Downloads continue in the background.'
+                    : 'AiNotes uses on-device AI models for:\n\n'
+                        '• Speech Recognition (~200MB)\n'
+                        '• Text Processing (~900MB)\n'
+                        '• Semantic Search (~200MB)\n\n'
+                        'Tap below to start downloading.',
             style: AppTypography.body.copyWith(color: colors.textSecondary),
             textAlign: TextAlign.center,
           ),
@@ -356,8 +401,8 @@ class _ModelDownloadPage extends StatelessWidget {
             const SizedBox(height: Spacing.xxl),
             OutlinedButton.icon(
               onPressed: onDownload,
-              icon: const Icon(Icons.download),
-              label: const Text('Initialize Models'),
+              icon: Icon(hasDownloading ? Icons.settings : Icons.download),
+              label: Text(hasDownloading ? 'Manage Downloads' : 'Initialize Models'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: colors.ideas,
                 side: BorderSide(color: colors.ideas),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/folders/presentation/folders_screen.dart';
 import '../../features/ask/presentation/ask_screen.dart';
@@ -16,11 +17,25 @@ import '../../shared/widgets/app_shell.dart';
 
 GoRouter createRouter({required bool onboardingComplete}) {
   return GoRouter(
-    initialLocation: '/home',
-    redirect: (context, state) {
-      if (!onboardingComplete && state.uri.path != '/onboarding') {
+    initialLocation: onboardingComplete ? '/home' : '/onboarding',
+    redirect: (context, state) async {
+      // Re-check onboarding status on every navigation
+      final prefs = await SharedPreferences.getInstance();
+      final isOnboardingComplete =
+          prefs.getBool('onboarding_complete') ?? false;
+
+      // If onboarding is complete and we're on the onboarding screen, go home
+      if (isOnboardingComplete && state.uri.path == '/onboarding') {
+        return '/home';
+      }
+
+      // If onboarding is not complete and we're not on the onboarding or models screen, go to onboarding
+      if (!isOnboardingComplete &&
+          state.uri.path != '/onboarding' &&
+          state.uri.path != '/models') {
         return '/onboarding';
       }
+
       return null;
     },
     routes: [

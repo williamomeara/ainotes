@@ -13,10 +13,10 @@ void main() {
       expect(() => engine.embed('test'), throwsStateError);
     });
 
-    test('embed returns 384-dimensional vector', () async {
+    test('embed returns 768-dimensional vector', () async {
       await engine.loadModel('');
       final embedding = await engine.embed('hello world');
-      expect(embedding.length, 384);
+      expect(embedding.length, 768);
     });
 
     test('embedBatch returns correct count', () async {
@@ -24,7 +24,7 @@ void main() {
       final embeddings =
           await engine.embedBatch(['hello', 'world', 'test']);
       expect(embeddings.length, 3);
-      expect(embeddings[0].length, 384);
+      expect(embeddings[0].length, 768);
     });
 
     test('similar texts produce similar embeddings', () async {

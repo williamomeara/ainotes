@@ -66,6 +66,15 @@ class ModelManagerScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (!state.allModelsReady)
+                  TextButton(
+                    onPressed: () => ref
+                        .read(modelManagerProvider.notifier)
+                        .downloadAll(),
+                    child: Text('Download All',
+                        style: AppTypography.caption
+                            .copyWith(color: colors.accent)),
+                  ),
               ],
             ),
           ),
@@ -177,10 +186,60 @@ class _ModelCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: Spacing.xs),
-                  Text(
-                    '${(progress * 100).round()}%',
-                    style: AppTypography.caption
-                        .copyWith(color: colors.textTertiary),
+                  Row(
+                    children: [
+                      Text(
+                        '${(progress * 100).round()}%',
+                        style: AppTypography.caption
+                            .copyWith(color: colors.textTertiary),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () => ref
+                            .read(modelManagerProvider.notifier)
+                            .pauseDownload(model.id),
+                        icon: Icon(Icons.pause,
+                            size: IconSizes.sm, color: colors.textTertiary),
+                        label: Text('Pause',
+                            style: AppTypography.caption
+                                .copyWith(color: colors.textTertiary)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            Paused(:final progress) => Column(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: colors.surfaceVariant,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          colors.accent.withValues(alpha: 0.5)),
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.xs),
+                  Row(
+                    children: [
+                      Text(
+                        '${(progress * 100).round()}% — Paused',
+                        style: AppTypography.caption
+                            .copyWith(color: colors.textTertiary),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () => ref
+                            .read(modelManagerProvider.notifier)
+                            .resumeDownload(model.id),
+                        icon: Icon(Icons.play_arrow,
+                            size: IconSizes.sm, color: colors.accent),
+                        label: Text('Resume',
+                            style: AppTypography.caption
+                                .copyWith(color: colors.accent)),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -203,15 +262,37 @@ class _ModelCard extends ConsumerWidget {
                   ),
                 ],
               ),
-            DownloadError(:final message) => Row(
+            DownloadError(:final message) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.error_outline,
-                      size: IconSizes.sm, color: colors.error),
-                  const SizedBox(width: Spacing.xs),
-                  Expanded(
-                    child: Text(message,
-                        style: AppTypography.caption
-                            .copyWith(color: colors.error)),
+                  Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          size: IconSizes.sm, color: colors.error),
+                      const SizedBox(width: Spacing.xs),
+                      Expanded(
+                        child: Text(message,
+                            style: AppTypography.caption
+                                .copyWith(color: colors.error),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Spacing.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => ref
+                          .read(modelManagerProvider.notifier)
+                          .resumeDownload(model.id),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.error,
+                        side: BorderSide(color: colors.error),
+                      ),
+                    ),
                   ),
                 ],
               ),

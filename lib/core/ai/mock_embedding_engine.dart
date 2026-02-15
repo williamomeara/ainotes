@@ -7,7 +7,7 @@ import 'embedding_engine.dart';
 /// Similar texts will produce similar vectors (using simple hashing).
 class MockEmbeddingEngine implements EmbeddingEngine {
   bool _loaded = false;
-  static final _dimensions = 384; // Match all-MiniLM-L6-v2 dimensions
+  static final _dimensions = 768; // Match EmbeddingGemma 300M dimensions
 
   @override
   Future<void> loadModel(String modelPath) async {
