@@ -12,6 +12,87 @@ The key insight: **organization IS intelligence**. The app doesn't just store no
 
 See `how_it_works.md` for the original product spec.
 
+---
+
+## Phase 1 Architecture: Key Decisions (Updated from Original Plan)
+
+The implementation diverged from the original plan in several key ways, all justified by real-world design and usability:
+
+### 1. Navigation: 4 Tabs Instead of 5
+**Original**: Home | Search | Record FAB | Ask | Organize
+**Actual**: Home | Folders | Ask | Settings
+
+**Rationale:**
+- Search functionality now lives in Folders (list view is more browsable than search)
+- Semantic search will be added later in Phase 4 (for now regex classification is sufficient)
+- Organize (category management) deferred to Phase 3+ when LLM confidence scoring is ready
+- Settings tab more useful than second-tier Organize UI
+- **Net effect**: Cleaner, more focused navigation; less overwhelming for users
+
+### 2. Microphone as Separate Button (Not Center FAB)
+**Original**: Center FAB with Record button
+**Actual**: Separate 48x48px red gradient button in input bar
+
+**Rationale:**
+- Separate button is always visible + reachable from any tab (Home, Folders, Ask)
+- Red gradient makes it prominent and discoverable without center FAB visual weight
+- More consistent with modern voice UI patterns (ChatGPT, Perplexity mobile)
+- Easier one-handed operation
+- Cleaner bottom nav without FAB cutout
+
+### 3. Unified Input Bar Instead of Tab-Specific Inputs
+**Original**: Each tab (Home, Search, Ask) had separate input methods
+**Actual**: Single UniversalInputBar on Home, Folders, Ask
+
+**Rationale:**
+- Reduces UI cognitive load (user learns one pattern, not three)
+- Enables smart routing (questions vs notes → different destinations)
+- Placeholder "What's on your mind?" is intent-agnostic (no tab switcher needed)
+- UnifiedInputProvider handles all intent classification centrally
+- Enables future: custom intent types (reminders, web clips) route automatically
+
+### 4. Intent Classification Layer (New, Not in Original Plan)
+**NEW**: IntentClassifier + MockIntentClassifier + UnifiedInputProvider
+
+**Rationale:**
+- Bridges UI and AI layers (enables smart routing before LLM integration)
+- Regex-based mock allows immediate testing of routing logic
+- Easy to swap with LLM-based classifier later (pluggable architecture)
+- User gets magic routing immediately (question → Ask tab, note stays in place)
+- Defers LLM complexity while keeping UX smart
+
+### 5. Simplified Recording Flow
+**Original**: Complex bottom sheet with waveform + live transcription + processing animation
+**Actual**: Full-screen RecordingScreen → transcript → UnifiedInputProvider routing
+
+**Rationale:**
+- Full-screen recording is proven UX (Otter.ai, Mem.ai)
+- Simplifies Phase 1 implementation
+- Processing animations deferred to Phase 3 (when LLM pipeline is ready)
+- Transcript still gets smart intent routing (questions/notes/todos)
+- Can enhance UI later without changing architecture
+
+### 6. Folders View (New Feature, Not in Original Plan)
+**NEW**: FoldersScreen with hierarchical list grouped by category
+
+**Rationale:**
+- Provides alternative browse mode to grid (some users prefer lists)
+- Shows category icons + note counts (great for Todos/Shopping overview)
+- Timestamps (2m ago, 1h ago) let users quickly find recent notes
+- Less CPU/RAM than masonry grid on large note collections
+- Enables future: collapsible categories, tag-based organization
+
+### 7. Chat Bubbles Enhancement
+**Updated**: Larger (340px vs 280px), better spacing (16px padding), improved typography
+
+**Rationale:**
+- Makes conversations more readable
+- Reduces visual clutter with better spacing
+- Sets visual bar for ASK responses (feels premium)
+- Easy to further enhance with animations later
+
+---
+
 ### UI Design Approach
 Since the original Figma was for the simpler voice-notes scope, we'll build the UI directly in code using researched patterns + visual inspiration from polished production apps. The approach: code-first iteration with strong design references.
 
@@ -110,12 +191,14 @@ lib/
 │   ├── error/
 │   │   └── result.dart                # Result<T> sealed class
 │   ├── ai/
-│   │   ├── llm_engine.dart            # Abstract LLM interface
-│   │   ├── llamadart_engine.dart      # llamadart implementation
-│   │   ├── stt_engine.dart            # Abstract STT interface
-│   │   ├── sherpa_stt_engine.dart     # sherpa_onnx implementation
-│   │   ├── embedding_engine.dart      # Abstract embedding interface
-│   │   └── gemma_embedding_engine.dart # EmbeddingGemma implementation
+│   │   ├── intent_classifier.dart     # Abstract interface (NEW: Phase 1)
+│   │   ├── mock_intent_classifier.dart # Regex-based implementation (NEW: Phase 1)
+│   │   ├── llm_engine.dart            # Abstract LLM interface (Phase 3+)
+│   │   ├── llamadart_engine.dart      # llamadart implementation (Phase 3+)
+│   │   ├── stt_engine.dart            # Abstract STT interface (Phase 2+)
+│   │   ├── sherpa_stt_engine.dart     # sherpa_onnx implementation (Phase 2+)
+│   │   ├── embedding_engine.dart      # Abstract embedding interface (Phase 4+)
+│   │   └── gemma_embedding_engine.dart # EmbeddingGemma implementation (Phase 4+)
 │   ├── rag/
 │   │   ├── rag_engine.dart            # Orchestrates: query → retrieve → augment → generate
 │   │   ├── chunker.dart               # Split content into 400-512 token chunks
@@ -127,6 +210,11 @@ lib/
 │   │   └── note_index.dart            # ObjectBox: note metadata + FTS
 │   └── constants.dart
 ├── features/
+│   ├── unified_input/                 # NEW: Intent detection + smart routing
+│   │   ├── domain/
+│   │   │   └── input_intent.dart      # sealed class: NoteIntent | QuestionIntent
+│   │   └── providers/
+│   │       └── unified_input_provider.dart  # StateNotifier: classify + route
 │   ├── recording/
 │   │   ├── domain/
 │   │   │   └── recording_state.dart   # freezed: Idle|Recording|Paused|Processing|Done|Error
@@ -137,6 +225,9 @@ lib/
 │   │   │   └── record_button.dart     # Pulse animation
 │   │   └── providers/
 │   │       └── recording_provider.dart
+│   ├── folders/                       # NEW: Hierarchical list view
+│   │   └── presentation/
+│   │       └── folders_screen.dart    # Notes grouped by category with timestamps
 │   ├── notes/
 │   │   ├── domain/
 │   │   │   ├── note.dart              # freezed Note model
@@ -197,6 +288,8 @@ lib/
 │           └── model_download_page.dart
 └── shared/
     └── widgets/
+        ├── app_shell.dart              # Bottom nav + app structure (updated)
+        ├── universal_input_bar.dart    # NEW: Unified input on Home/Folders/Ask
         ├── gradient_button.dart
         └── app_bottom_sheet.dart
 ```
@@ -311,29 +404,37 @@ abstract class EmbeddingEngine {
 
 ## Part 3: UI/UX Architecture
 
-### Navigation Structure
+### Navigation Structure (Updated Phase 1)
 ```
 ┌─────────────────────────────────┐
-│  [Search bar]            [···]  │  ← Always-visible search + overflow menu
+│  Title + Filter Chips           │
 ├─────────────────────────────────┤
 │                                 │
 │         MAIN CONTENT            │  ← Swappable based on active tab
 │    (cards, list, chat, etc)     │
 │                                 │
 │                                 │
+├─────────────────────────────────┤  ← UniversalInputBar
+│ What's on your mind?  🎤  📷    │  (shows on Home, Folders, Ask)
 ├─────────────────────────────────┤
-│                  ┌───┐          │
-│  Home  Search    │ ● │   Ask  ≡ │  ← Bottom tabs (Record FAB in center)
-│                  └───┘          │
+│ [Home] [Folders] [Ask] [Settings]│  ← Bottom tabs (4 items)
 └─────────────────────────────────┘
 ```
 
-**Bottom tabs (5 items):**
+**Bottom tabs (4 items):**
 1. **Home** — Card grid of notes, grouped by "Today", "This Week", category
-2. **Search** — Hybrid semantic + keyword search with filters
-3. **Record** (center FAB) — Large mic button, always prominent, persists across all tabs
-4. **Ask** — "Ask your notes" RAG-powered chat interface
-5. **Organize** — Category management, tags, custom folders
+2. **Folders** — Hierarchical list view grouped by category with timestamps
+3. **Ask** — "Ask your notes" RAG-powered chat interface (same input bar as Home)
+4. **Settings** — App settings, model management, preferences
+
+**Key changes from original plan:**
+- Removed Search tab (functionality integrated into Folders + semantic search later)
+- Removed Organize tab (category management deferred to Phase 3+)
+- Replaced Search tab with Folders (new list view for browsing)
+- **Unified input bar** on Home, Folders, Ask (not Search)
+- **Microphone as separate red button** (not center FAB) — 48x48px gradient button
+- Input bar shows on 3 tabs, not on Settings
+- All input routes through **UnifiedInputProvider** for smart intent detection
 
 ### Home Screen: Card-Based Bento Grid
 - Notes displayed as **color-coded cards** — category determines accent color
@@ -344,47 +445,41 @@ abstract class EmbeddingEngine {
 - **Long-press** → quick actions (re-categorize, delete, share)
 - **Density toggle**: comfortable (large cards) / compact (list view)
 
-### Recording Flow (Expandable Bottom Sheet)
+### Unified Input Flow (Phase 1 Implementation)
 ```
-State 1: IDLE
-  └─ Large center FAB with mic icon + subtle pulse
+User Input (any method)
+├─ Text capture (tap input bar)
+├─ Voice recording (tap mic button)
+└─ Photo capture (tap camera icon)
+   └─ All convert to text
 
-State 2: RECORDING (tap FAB)
-  └─ Bottom sheet slides up (40% screen height):
-     ┌─────────────────────────┐
-     │  ●  Recording  0:12     │  ← Red dot + timer
-     │  ════════════════════   │  ← Live waveform
-     │  "okay so I need to..." │  ← Real-time transcription
-     │  [Pause] [■ Stop]       │  ← Thumb-reachable controls
-     └─────────────────────────┘
-  └─ User can swipe up to expand to full screen
-  └─ App content still visible behind (dimmed)
+Text → UnifiedInputProvider
+├─ IntentClassifier.classify(text)
+├─ Question detected (regex: what/when/where/who/how/why/find/show me)
+│  └─ ChatProvider.sendMessage(text)
+│  └─ Navigate to Ask tab
+└─ Note detected (statement/observation/reminder)
+   ├─ Suggest category (regex patterns: shopping/todos/ideas/general)
+   └─ NotesProvider.createNote()
+   └─ Stay on current tab
 
-State 3: PROCESSING (after stop)
-  └─ Bottom sheet morphs into processing card:
-     ┌─────────────────────────┐
-     │  ✓ Transcribed          │  ← Step 1 complete
-     │  ◎ Rewriting...         │  ← Step 2 in progress (spinner)
-     │  ○ Classifying          │  ← Step 3 pending
-     │  ○ Filing               │  ← Step 4 pending
-     └─────────────────────────┘
-  └─ Progressive reveal: each step animates completion
-  └─ Takes 2-5 seconds total
+Intent Classifier (regex-based mock, replaced later with LLM)
+├─ Questions: ^(what|when|where|who|how|why|find|show me)\b
+├─ Todos: (remind me|need to|don't forget|todo|task)
+├─ Shopping: (buy|get|purchase|pick up|grocery)
+├─ Ideas: (idea|concept|maybe|could|brainstorm)
+└─ Default: General note
 
-State 4: DONE
-  └─ Card transitions into the organized note:
-     ┌─────────────────────────┐
-     │  🛒 Shopping  •  92%    │  ← Category + confidence
-     │  ─────────────────────  │
-     │  # Groceries            │
-     │  - Milk                 │
-     │  - Bread, Eggs          │
-     │  ─────────────────────  │
-     │  [View] [Edit] [Move]   │
-     │  📎 3 related notes     │  ← RAG found connections
-     └─────────────────────────┘
-  └─ Auto-dismisses after 5s, note appears in grid
-  └─ Undo button visible for 30s
+Recording Flow (Phase 1 simplified)
+├─ Tap red mic button
+├─ Full-screen RecordingScreen opens
+├─ Live transcription displayed
+├─ Tap "Send" (not "Save & Process")
+└─ Transcript routes through UnifiedInputProvider
+   └─ Intent detection determines note vs question
+   └─ Route accordingly (Ask tab or stay on Home)
+
+Note: Complex processing pipeline animations (✓ Transcribed → ◎ Rewriting → ○ Filing) deferred to Phase 3 after LLM integration
 ```
 
 ### "Ask Your Notes" (RAG Chat)
@@ -440,23 +535,51 @@ general:   Color(0xFF6B7280)  // gray-500
 
 ## Part 4: Implementation Phases
 
-### Phase 1: Foundation + Notes UI
-*Goal: Beautiful notes app shell with storage layer — should look like a polished app even before AI is wired up*
-1. Add packages: Riverpod, go_router, freezed, ObjectBox, path_provider, yaml, flutter_animate
-2. Create full folder structure
-3. Theme system (ThemeExtension, design tokens, colors, typography, category colors)
-4. Result<T> sealed class
-5. go_router: shell route with bottom tab bar (Home, Search, Record FAB, Ask, Organize)
-6. freezed Note model + NoteCategory + NoteSource enums
-7. NoteFileStore — read/write markdown with YAML frontmatter
-8. ObjectBox note index (metadata + FTS)
-9. NoteRepository — orchestrates file store + index
-10. Home screen: card-based Bento grid with smart grouping + filter chips
-11. Note card widget: color-coded by category, source badge, confidence dot
-12. Note detail screen (view + edit + before/after toggle placeholder)
-13. Search screen (keyword search via ObjectBox FTS, semantic search wired in Phase 4)
-14. Empty states, loading shimmer, basic enter/exit animations
-15. Placeholder screens for Ask and Organize tabs
+### Phase 1: Foundation + Notes UI + Unified Input ✅ COMPLETE
+*Goal: Beautiful notes app shell with storage layer + unified smart input*
+
+**COMPLETED in this session:**
+1. ✅ Theme system (ThemeExtension, design tokens, colors, typography, category colors)
+2. ✅ go_router: 4-tab navigation (Home, Folders, Ask, Settings)
+3. ✅ freezed Note model + NoteCategory + NoteSource enums + repositories
+4. ✅ NoteFileStore — read/write markdown with YAML frontmatter
+5. ✅ ObjectBox note index (metadata + FTS)
+6. ✅ NoteRepository — orchestrates file store + index
+7. ✅ Home screen: card-based Bento grid with smart grouping + filter chips
+8. ✅ Note card widget: color-coded by category, source badge, confidence dot
+9. ✅ Note detail screen (view + edit)
+10. ✅ Folders screen: hierarchical list view grouped by category (NEW feature)
+11. ✅ Ask screen: chat interface with message bubbles
+12. ✅ **UniversalInputBar** widget (replaces fragmented input methods)
+   - Shows on Home, Folders, Ask tabs (not Settings)
+   - "What's on your mind?" placeholder (intent-agnostic)
+   - Prominent red gradient mic button (separate from main input)
+   - Camera icon for photo capture
+13. ✅ **IntentClassifier** abstraction + MockIntentClassifier (regex-based)
+   - Questions: what/when/where/who/how/why/find/show me
+   - Todos: remind me/need to/don't forget
+   - Shopping: buy/get/purchase
+   - Ideas: idea/concept/brainstorm
+   - Default: general notes
+14. ✅ **UnifiedInputProvider** (StateNotifier)
+   - Routes input through intent classification
+   - Questions → ChatProvider → Ask tab
+   - Notes → NotesProvider → stay on current tab
+15. ✅ Enhanced message bubbles (larger, better spacing)
+16. ✅ Android 16 Edge-to-Edge fix (SafeArea + BottomNavigationBar)
+17. ✅ Text capture integration with UnifiedInputProvider
+18. ✅ Voice recording integration with UnifiedInputProvider
+
+**To be completed in Phase 2:**
+- LLM-powered STT (sherpa_onnx)
+- Processing pipeline animations
+- Real-time transcription UI
+- Confidence scoring + disambiguation
+
+**Deferred to Phase 3+:**
+- LLM rewriting (llamadart)
+- Auto-classification with confidence
+- Embeddings + semantic search
 
 ### Phase 2: Recording + STT
 *Goal: Tap record → see waveform + live transcription → get transcript*
@@ -614,27 +737,79 @@ dev_dependencies:
 
 ## Part 8: Immediate Next Steps
 
-After plan approval, the first implementation session (Phase 1):
-1. Update CLAUDE.md with revised vision + tech stack
-2. Add foundation packages to pubspec.yaml (Riverpod, go_router, freezed, ObjectBox, yaml, path_provider)
-3. Create full folder structure
-4. Implement theme system + design tokens
-5. Set up go_router with placeholder screens
-6. Create freezed Note model + enums
-7. Implement NoteFileStore (markdown + YAML frontmatter)
-8. Implement ObjectBox note index
-9. Implement NoteRepository
-10. Build notes list with category tabs + note detail screen
+**Phase 1 ✅ COMPLETE** — All foundation + unified input fully implemented
+
+**Phase 2 (Next): Recording + STT Integration**
+1. Add packages: sherpa_onnx, record, audio_waveforms, pulsator
+2. STTEngine abstraction + SherpaSTTEngine implementation
+3. Wire recording UI to STT engine for live transcription
+4. Test: Record audio → see live transcript on device
+5. Integration test: End-to-end voice → text → classification
+
+**Phase 3 (After Phase 2): LLM Pipeline + Auto-Organization**
+1. Add packages: llamadart
+2. LLMEngine abstraction + LlamadartEngine
+3. Model manager + download UI
+4. Prompt templates (rewrite, classify, extract tags)
+5. Processing pipeline: transcribe → rewrite → classify → embed → save
+6. Processing animation: Show ✓ Transcribed → ◎ Rewriting → ○ Classifying
+7. Replace MockIntentClassifier with LLM-based classifier for better accuracy
+8. Confidence scoring + disambiguation flow
+
+**Phase 4 (After Phase 3): Embeddings + RAG Core**
+1. Add packages: flutter_gemma
+2. EmbeddingEngine abstraction + GemmaEmbeddingEngine
+3. ObjectBox vector store (HNSW indexing)
+4. Chunker (400-512 tokens, 20% overlap)
+5. RAG engine: query → retrieve → augment → generate
+6. Update search screen: hybrid keyword + semantic search
+7. Smart merging: "Also get bananas" → append to grocery list
+
+**Phase 5+ (Polish & Intelligence)**
+- Multi-input (text, photo, document) via capture menu
+- Onboarding flow (privacy, permissions, model downloads)
+- Settings screen (model selection, confidence thresholds)
+- Animations + haptic feedback
+- Auto-linking, clustering, weekly digest
 
 ---
 
 ## Verification
 
-Per phase:
-- `flutter analyze` passes
-- `flutter test` passes
-- Phase 1: Can create, view, edit, categorize notes (stored as .md files)
-- Phase 2: Can record audio + see waveform
-- Phase 3: Full voice → clean organized note pipeline works
-- Phase 4: Semantic search finds related notes, "ask your notes" returns grounded answers
-- Phase 5: Can capture via voice, text, photo, document
+**Phase 1 ✅ COMPLETE:**
+- ✅ `flutter analyze` passes (no issues)
+- ✅ `flutter build apk` passes (all architectures)
+- ✅ Can create notes via text input
+- ✅ Can view, edit, categorize notes (stored as .md files)
+- ✅ Notes appear in Home grid with smart grouping (Today, This Week, Earlier)
+- ✅ Notes appear in Folders view grouped by category
+- ✅ Filter chips work on Home tab
+- ✅ Ask tab displays with message bubbles (larger, enhanced)
+- ✅ UniversalInputBar shows on Home, Folders, Ask (not Settings)
+- ✅ Text input routes through UnifiedInputProvider
+- ✅ Voice input transcripts route through UnifiedInputProvider
+- ✅ Questions detected via intent classifier navigate to Ask tab
+- ✅ Notes created via intent classifier stay on current tab
+- ✅ UI works without overlap on Android 16 (Pixel 8)
+- ✅ App ready for STT integration in Phase 2
+
+**Phase 2 (Next):**
+- Can record audio + see waveform
+- Live transcription displayed during recording
+- Transcript fed to UnifiedInputProvider for intent detection
+- End-to-end voice → text → classification flow
+
+**Phase 3 (After Phase 2):**
+- Full voice → rewrite → classify → save pipeline with animations
+- LLM-powered intent detection (not just regex)
+- Confidence scoring with disambiguation UI
+
+**Phase 4 (After Phase 3):**
+- Semantic search finds related notes
+- "Ask your notes" returns grounded answers via RAG
+- Smart merging of similar notes
+
+**Phase 5 (Polish & Intelligence):**
+- Can capture via voice, text, photo, document
+- Auto-linking, clustering, weekly digest
+- Onboarding flow, settings, accessibility

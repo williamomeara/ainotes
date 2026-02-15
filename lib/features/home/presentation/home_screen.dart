@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../../shared/widgets/error_state_widget.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../notes/providers/notes_provider.dart';
 import 'note_card.dart';
 import 'filter_chips.dart';
@@ -34,40 +37,17 @@ class HomeScreen extends ConsumerWidget {
               child: Center(child: CircularProgressIndicator()),
             ),
             error: (e, _) => SliverFillRemaining(
-              child: Center(
-                child: Text('Error: $e',
-                    style: TextStyle(color: colors.textSecondary)),
+              child: ErrorStateWidget.noteLoadFailure(
+                () => ref.refresh(notesProvider),
               ),
             ),
             data: (notes) {
               if (notes.isEmpty) return _emptyState(colors);
-              final grouped = _groupNotes(notes);
-              return SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final entry = grouped[index];
-                    if (entry.isHeader) {
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            Spacing.lg, Spacing.xl, Spacing.lg, Spacing.sm),
-                        child: Text(
-                          entry.header!,
-                          style: AppTypography.label
-                              .copyWith(color: colors.textTertiary),
-                        ),
-                      );
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: Spacing.lg, vertical: Spacing.xs),
-                      child: NoteCard(note: entry.note!),
-                    );
-                  },
-                  childCount: grouped.length,
-                ),
-              );
+              return _buildGroupedMasonry(notes, colors);
             },
           ),
+          // Bottom padding for input bar + nav bar (handled by BottomNavigationBar + SafeArea)
+          const SliverToBoxAdapter(child: SizedBox(height: 140)),
         ],
       ),
     );
@@ -87,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: Spacing.sm),
             Text(
-              'Tap the mic button to record your first note',
+              'Use the capture bar below to create your first note',
               style: AppTypography.bodySmall.copyWith(color: colors.textTertiary),
             ),
           ],
@@ -96,39 +76,49 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  List<_GroupedItem> _groupNotes(List<dynamic> notes) {
+  SliverMainAxisGroup _buildGroupedMasonry(
+      List<dynamic> notes, AppColors colors) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final weekAgo = today.subtract(const Duration(days: 7));
 
-    final todayNotes = notes.where((n) => n.createdAt.isAfter(today)).toList();
+    final todayNotes =
+        notes.where((n) => n.createdAt.isAfter(today)).toList();
     final weekNotes = notes
-        .where((n) => n.createdAt.isAfter(weekAgo) && !n.createdAt.isAfter(today))
+        .where(
+            (n) => n.createdAt.isAfter(weekAgo) && !n.createdAt.isAfter(today))
         .toList();
-    final olderNotes = notes.where((n) => !n.createdAt.isAfter(weekAgo)).toList();
+    final olderNotes =
+        notes.where((n) => !n.createdAt.isAfter(weekAgo)).toList();
 
-    final items = <_GroupedItem>[];
-    if (todayNotes.isNotEmpty) {
-      items.add(_GroupedItem.header('Today'));
-      items.addAll(todayNotes.map(_GroupedItem.noteItem));
-    }
-    if (weekNotes.isNotEmpty) {
-      items.add(_GroupedItem.header('This Week'));
-      items.addAll(weekNotes.map(_GroupedItem.noteItem));
-    }
-    if (olderNotes.isNotEmpty) {
-      items.add(_GroupedItem.header('Earlier'));
-      items.addAll(olderNotes.map(_GroupedItem.noteItem));
-    }
-    return items;
+    return SliverMainAxisGroup(
+      slivers: [
+        if (todayNotes.isNotEmpty) ...[
+          const SliverToBoxAdapter(child: SectionHeader(title: 'Today')),
+          _masonryGrid(todayNotes),
+        ],
+        if (weekNotes.isNotEmpty) ...[
+          const SliverToBoxAdapter(child: SectionHeader(title: 'This Week')),
+          _masonryGrid(weekNotes),
+        ],
+        if (olderNotes.isNotEmpty) ...[
+          const SliverToBoxAdapter(child: SectionHeader(title: 'Earlier')),
+          _masonryGrid(olderNotes),
+        ],
+      ],
+    );
   }
-}
 
-class _GroupedItem {
-  final String? header;
-  final dynamic note;
-  bool get isHeader => header != null;
-
-  _GroupedItem.header(this.header) : note = null;
-  _GroupedItem.noteItem(this.note) : header = null;
+  Widget _masonryGrid(List<dynamic> notes) {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+      sliver: SliverMasonryGrid.count(
+        crossAxisCount: 2,
+        mainAxisSpacing: Spacing.sm,
+        crossAxisSpacing: Spacing.sm,
+        childCount: notes.length,
+        itemBuilder: (context, index) => NoteCard(note: notes[index]),
+      ),
+    );
+  }
 }
