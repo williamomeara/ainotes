@@ -15,17 +15,22 @@ class LLMIntentClassifier implements IntentClassifier {
 
   @override
   Future<InputIntent> classify(String text) async {
-    final prompt = PromptTemplates.classifyIntent(text);
-    final response = await llmEngine.generate(
-      prompt,
-      maxTokens: 64,
-      temperature: 0.1,
-    );
+    debugPrint('[AiNotes] LLMIntentClassifier.classify("${text.length > 40 ? '${text.substring(0, 40)}...' : text}")');
+    debugPrint('[AiNotes] LLM engine type: ${llmEngine.runtimeType}');
 
     try {
+      final prompt = PromptTemplates.classifyIntent(text);
+      final response = await llmEngine.generate(
+        prompt,
+        maxTokens: 64,
+        temperature: 0.1,
+      );
+      debugPrint('[AiNotes] LLM intent response: "$response"');
+
       final cleaned = _extractJson(response);
       final json = jsonDecode(cleaned) as Map<String, dynamic>;
       final type = json['type'] as String?;
+      debugPrint('[AiNotes] Parsed intent type: $type');
 
       if (type == 'question') {
         return QuestionIntent(question: text);
@@ -33,8 +38,10 @@ class LLMIntentClassifier implements IntentClassifier {
 
       final categoryName = (json['category'] as String?)?.toLowerCase() ?? 'general';
       return NoteIntent(suggestedCategoryName: categoryName, cleanedText: text);
-    } catch (e) {
-      debugPrint('[AiNotes] LLMIntentClassifier parse failed, falling back: $e');
+    } catch (e, st) {
+      debugPrint('[AiNotes] LLMIntentClassifier FAILED: $e');
+      debugPrint('[AiNotes] Stack trace: $st');
+      debugPrint('[AiNotes] Falling back to regex classification');
       final lower = text.toLowerCase().trim();
       if (RegExp(r'^(what|when|where|who|how|why|find|show me)\b')
           .hasMatch(lower)) {

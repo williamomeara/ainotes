@@ -62,6 +62,7 @@ class NotesNotifier extends AsyncNotifier<List<Note>> {
     List<String> tags = const [],
     bool isDraft = false,
   }) async {
+    debugPrint('[AiNotes] createNote(category=$categoryName, isDraft=$isDraft, source=${source.name})');
     final result = await _repo.createNote(
       originalText: originalText,
       rewrittenText: rewrittenText,
@@ -73,25 +74,31 @@ class NotesNotifier extends AsyncNotifier<List<Note>> {
     );
     return result.when(
       ok: (note) {
-        debugPrint('[AiNotes] Note saved: ${note.id} (${note.categoryName})');
+        debugPrint('[AiNotes] Note created OK: ${note.id} (${note.categoryName}, isDraft=${note.isDraft})');
         refresh();
         return note;
       },
       err: (msg) {
-        debugPrint('[AiNotes] Failed to create note: $msg');
+        debugPrint('[AiNotes] Note creation FAILED: $msg');
         return null;
       },
     );
   }
 
   Future<bool> updateNote(Note note) async {
+    debugPrint('[AiNotes] updateNote(${note.id}, isDraft=${note.isDraft}, category=${note.categoryName}, rewrite=${note.rewrittenText.length}ch)');
     final result = await _repo.updateNote(note);
     return result.when(
-      ok: (_) {
-        refresh();
+      ok: (_) async {
+        debugPrint('[AiNotes] updateNote OK, refreshing provider...');
+        await refresh();
+        debugPrint('[AiNotes] Provider refreshed after updateNote');
         return true;
       },
-      err: (_) => false,
+      err: (msg) {
+        debugPrint('[AiNotes] updateNote FAILED: $msg');
+        return false;
+      },
     );
   }
 

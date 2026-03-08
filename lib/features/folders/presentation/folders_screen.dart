@@ -127,6 +127,16 @@ class _NoteListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayText = note.rewrittenText.isNotEmpty
+        ? note.rewrittenText
+        : note.originalText;
+    final textStyle = note.rewrittenText.isNotEmpty
+        ? AppTypography.body.copyWith(color: colors.textSecondary)
+        : AppTypography.body.copyWith(
+            color: colors.textTertiary,
+            fontStyle: FontStyle.italic,
+          );
+
     return InkWell(
       onTap: () => context.push('/note/${note.id}'),
       child: Padding(
@@ -135,17 +145,31 @@ class _NoteListItem extends StatelessWidget {
           children: [
             const SizedBox(width: Spacing.md),
             Expanded(
-              child: Text(
-                note.rewrittenText,
-                style: AppTypography.body.copyWith(color: colors.textSecondary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  displayText,
+                  key: ValueKey('${note.id}-${note.rewrittenText.isEmpty}'),
+                  style: textStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
-            Text(
-              _formatTime(note.createdAt),
-              style: AppTypography.caption.copyWith(color: colors.textTertiary),
-            ),
+            note.isDraft
+                ? SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.accent,
+                    ),
+                  )
+                : Text(
+                    _formatTime(note.createdAt),
+                    style: AppTypography.caption
+                        .copyWith(color: colors.textTertiary),
+                  ),
           ],
         ),
       ),

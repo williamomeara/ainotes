@@ -50,12 +50,13 @@ class UnifiedInputNotifier extends StateNotifier<UnifiedInputState> {
 
     try {
       final classifier = ref.read(intentClassifierProvider);
+      debugPrint('[AiNotes] Classifying intent with ${classifier.runtimeType}...');
       final intent = await classifier.classify(text);
-      debugPrint('[AiNotes] Intent classified: $intent');
+      debugPrint('[AiNotes] Intent result: ${intent.runtimeType} - $intent');
 
       switch (intent) {
         case NoteIntent():
-          debugPrint('[AiNotes] Routing to note creation (async processing)');
+          debugPrint('[AiNotes] -> Note route (category hint: ${intent.suggestedCategoryName})');
 
           final note = await ref.read(notesProvider.notifier).createNote(
                 originalText: text,
@@ -67,27 +68,29 @@ class UnifiedInputNotifier extends StateNotifier<UnifiedInputState> {
               );
 
           if (note != null) {
-            debugPrint('[AiNotes] Draft note saved: ${note.id}');
+            debugPrint('[AiNotes] Draft note created: ${note.id} (isDraft=true, category=${note.categoryName})');
             state = state.copyWith(isProcessing: false);
 
+            debugPrint('[AiNotes] Launching background processing for ${note.id}');
             _processInBackground(note.id, text, source);
           } else {
-            throw Exception('Failed to create note');
+            throw Exception('Failed to create draft note');
           }
           break;
 
         case QuestionIntent(:final question):
-          debugPrint('[AiNotes] Routing to Ask/RAG');
+          debugPrint('[AiNotes] -> Ask route');
           await ref.read(chatProvider.notifier).sendMessage(question);
           if (_context != null) {
             _context!.go('/ask');
           }
-          debugPrint('[AiNotes] Input processed successfully - routed to Ask');
+          debugPrint('[AiNotes] Routed to Ask tab');
           state = state.copyWith(isProcessing: false);
           break;
       }
-    } catch (e) {
-      debugPrint('[AiNotes] Input processing failed: $e');
+    } catch (e, st) {
+      debugPrint('[AiNotes] Input processing FAILED: $e');
+      debugPrint('[AiNotes] Stack trace: $st');
       state = state.copyWith(isProcessing: false, error: e.toString());
     }
   }

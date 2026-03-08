@@ -138,6 +138,93 @@ class ProcessingPipeline {
     );
   }
 
+  /// Process raw input with streaming rewrite (token-by-token).
+  /// [onRewriteToken] is called with the accumulated text on each token.
+  /// [onStepComplete] is called after each major step completes.
+  Future<ProcessingResult> processStreaming(
+    String rawText, {
+    OnStepChanged? onStep,
+    void Function(String accumulated)? onRewriteToken,
+    List<String>? existingCategories,
+  }) async {
+    debugPrint('[AiNotes] Pipeline.processStreaming() starting');
+    debugPrint('[AiNotes]   LLM engine: ${llmEngine.runtimeType}');
+    debugPrint('[AiNotes]   Input: ${rawText.length} chars');
+
+    // Step 1: Transcription (already done - text is input)
+    onStep?.call(ProcessingStep.transcribing);
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Step 2: Rewrite via streaming (maxTokens=512, temp=0.3)
+    onStep?.call(ProcessingStep.rewriting);
+    debugPrint('[AiNotes]   Streaming rewrite starting...');
+    final rewritePrompt = PromptTemplates.rewrite(rawText);
+    final buffer = StringBuffer();
+    var tokenCount = 0;
+    await for (final token in llmEngine.generateStream(
+      rewritePrompt,
+      maxTokens: 512,
+      temperature: 0.3,
+    )) {
+      buffer.write(token);
+      tokenCount++;
+      onRewriteToken?.call(buffer.toString());
+    }
+    final rewrittenText = buffer.toString().trim();
+    debugPrint('[AiNotes]   Streaming rewrite done: $tokenCount tokens, ${rewrittenText.length} chars');
+    debugPrint('[AiNotes]   Rewritten: "${rewrittenText.length > 60 ? '${rewrittenText.substring(0, 60)}...' : rewrittenText}"');
+
+    // Step 3: Classify + Tag (non-streaming, JSON not useful to display)
+    onStep?.call(ProcessingStep.classifying);
+    debugPrint('[AiNotes]   Classifying + tagging...');
+    final classifyPrompt = PromptTemplates.classifyAndTag(
+      rewrittenText,
+      existingCategories: existingCategories,
+    );
+    final classifyResponse = await llmEngine.generate(
+      classifyPrompt,
+      maxTokens: 128,
+      temperature: 0.1,
+    );
+
+    String categoryName;
+    double confidence;
+    List<String> tags;
+    try {
+      final cleaned = _extractJson(classifyResponse);
+      final json = jsonDecode(cleaned) as Map<String, dynamic>;
+      categoryName = (json['category'] as String?)?.toLowerCase() ?? 'general';
+      confidence = (json['confidence'] as num?)?.toDouble() ?? 0.7;
+      final rawTags = json['tags'];
+      if (rawTags is List) {
+        tags = rawTags
+            .map((t) => t.toString().trim().toLowerCase())
+            .where((t) => t.isNotEmpty)
+            .toList();
+      } else {
+        tags = _fallbackTags(rewrittenText);
+      }
+    } catch (e) {
+      debugPrint('[AiNotes] Classify+tag JSON parse failed, defaulting: $e');
+      categoryName = 'general';
+      confidence = 0.5;
+      tags = _fallbackTags(rewrittenText);
+    }
+    debugPrint('[AiNotes] Classified as: $categoryName ($confidence)');
+    debugPrint('[AiNotes] Tags extracted: $tags');
+
+    // Step 4: Embed
+    onStep?.call(ProcessingStep.embedding);
+
+    return ProcessingResult(
+      originalText: rawText,
+      rewrittenText: rewrittenText,
+      categoryName: categoryName,
+      confidence: confidence,
+      tags: tags,
+    );
+  }
+
   /// Embed a note's text and store in vector store.
   Future<void> embedNote(String noteId, String text) async {
     final chunks = chunker.chunk(text);

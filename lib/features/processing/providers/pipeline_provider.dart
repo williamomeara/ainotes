@@ -55,11 +55,19 @@ final vectorStoreProvider = Provider<VectorStore>((ref) {
 });
 
 /// Provides the intent classifier.
+/// Falls back to MockIntentClassifier if the LLM engine isn't ready,
+/// since the intent classifier runs before model loading in processAndUpdate.
 final intentClassifierProvider = Provider<IntentClassifier>((ref) {
   final llmEngine = ref.watch(llmEngineProvider);
   if (llmEngine is LlamaDartEngine) {
-    debugPrint('[AiNotes] Intent classifier: LLMIntentClassifier');
-    return LLMIntentClassifier(llmEngine: llmEngine);
+    final modelState = ref.watch(modelManagerProvider);
+    final llmState = modelState.getDownloadState('qwen-2.5-1.5b');
+    if (llmState is Ready && llmState.localPath.isNotEmpty) {
+      debugPrint('[AiNotes] Intent classifier: LLMIntentClassifier (model: ${llmState.localPath})');
+      return LLMIntentClassifier(llmEngine: llmEngine);
+    }
+    debugPrint('[AiNotes] Intent classifier: MockIntentClassifier (LlamaDart available but model not ready)');
+    return MockIntentClassifier();
   }
   debugPrint('[AiNotes] Intent classifier: MockIntentClassifier');
   return MockIntentClassifier();
@@ -72,6 +80,40 @@ final processingPipelineProvider = Provider<ProcessingPipeline>((ref) {
     embeddingEngine: ref.watch(embeddingEngineProvider),
     vectorStore: ref.watch(vectorStoreProvider),
   );
+});
+
+/// Holds streaming rewrite text for notes being actively processed.
+/// Key: noteId, Value: accumulated text so far.
+class RewriteStreamState {
+  final Map<String, String> streams;
+  const RewriteStreamState({this.streams = const {}});
+
+  RewriteStreamState withText(String noteId, String text) {
+    return RewriteStreamState(streams: {...streams, noteId: text});
+  }
+
+  RewriteStreamState without(String noteId) {
+    return RewriteStreamState(
+      streams: Map.fromEntries(streams.entries.where((e) => e.key != noteId)),
+    );
+  }
+}
+
+class RewriteStreamNotifier extends StateNotifier<RewriteStreamState> {
+  RewriteStreamNotifier() : super(const RewriteStreamState());
+
+  void updateText(String noteId, String text) {
+    state = state.withText(noteId, text);
+  }
+
+  void clear(String noteId) {
+    state = state.without(noteId);
+  }
+}
+
+final rewriteStreamProvider =
+    StateNotifierProvider<RewriteStreamNotifier, RewriteStreamState>((ref) {
+  return RewriteStreamNotifier();
 });
 
 /// State for an active processing job.
@@ -240,61 +282,102 @@ class ProcessingJobNotifier extends StateNotifier<ProcessingJobState> {
     required String rawText,
     required NoteSource source,
   }) async {
-    debugPrint('[AiNotes] Background processing starting for note $noteId');
+    debugPrint('[AiNotes] ┌── processAndUpdate START ──');
+    debugPrint('[AiNotes] │ noteId: $noteId');
+    debugPrint('[AiNotes] │ rawText: ${rawText.length} chars');
+    debugPrint('[AiNotes] │ source: ${source.name}');
     state = ProcessingJobState(isProcessing: true, noteId: noteId);
 
     try {
       final pipeline = ref.read(processingPipelineProvider);
       final llmEngine = ref.read(llmEngineProvider);
       final embeddingEngine = ref.read(embeddingEngineProvider);
+      debugPrint('[AiNotes] │ LLM engine: ${llmEngine.runtimeType}');
+      debugPrint('[AiNotes] │ Embedding engine: ${embeddingEngine.runtimeType}');
 
       // Load models
       final modelState = ref.read(modelManagerProvider);
       final llmState = modelState.getDownloadState('qwen-2.5-1.5b');
       final embState = modelState.getDownloadState('embedding-gemma-300m');
+      debugPrint('[AiNotes] │ LLM state: ${llmState.runtimeType}');
+      debugPrint('[AiNotes] │ Embedding state: ${embState.runtimeType}');
 
       if (llmState is Ready && llmState.localPath.isNotEmpty) {
         if (llmEngine is! MockLLMEngine) {
+          debugPrint('[AiNotes] │ Loading real LLM model: ${llmState.localPath}');
           await llmEngine.loadModel(llmState.localPath);
+          debugPrint('[AiNotes] │ Real LLM model loaded OK');
         } else {
           await llmEngine.loadModel('');
+          debugPrint('[AiNotes] │ Mock LLM loaded');
         }
       } else if (llmEngine is MockLLMEngine) {
         await llmEngine.loadModel('');
+        debugPrint('[AiNotes] │ Mock LLM loaded');
       } else {
-        debugPrint('[AiNotes] Background: LLM not available, skipping');
+        debugPrint('[AiNotes] └── ABORT: LLM not available');
         state = ProcessingJobState(isProcessing: false, noteId: noteId);
         return;
       }
 
-      // Run pipeline
-      final result = await pipeline.process(
+      // Run streaming pipeline
+      final streamNotifier = ref.read(rewriteStreamProvider.notifier);
+      debugPrint('[AiNotes] │ Starting streaming pipeline...');
+      var tokenCount = 0;
+
+      final result = await pipeline.processStreaming(
         rawText,
         onStep: (step) {
+          debugPrint('[AiNotes] │ Step: ${step.label}');
           state = state.copyWith(currentStep: step);
+        },
+        onRewriteToken: (accumulated) {
+          tokenCount++;
+          streamNotifier.updateText(noteId, accumulated);
         },
       );
 
-      // Update the note with processed data
+      debugPrint('[AiNotes] │ Streaming done: $tokenCount tokens, rewrite="${result.rewrittenText}"');
+      debugPrint('[AiNotes] │ Classification: ${result.categoryName} (${result.confidence}), tags=${result.tags}');
+
+      // Rewrite complete — write to DB and clear stream
       final notesNotifier = ref.read(notesProvider.notifier);
       final notes = await ref.read(notesProvider.future);
       final existingNote = notes.where((n) => n.id == noteId).firstOrNull;
 
       if (existingNote != null) {
-        // Resolve category name to ID
+        debugPrint('[AiNotes] │ DB update 1/2: writing rewrittenText');
+        await notesNotifier.updateNote(existingNote.copyWith(
+          rewrittenText: result.rewrittenText,
+        ));
+        streamNotifier.clear(noteId);
+        debugPrint('[AiNotes] │ Stream cleared, rewrittenText persisted');
+
+        // Now resolve category and write classification
         final categoriesDao = CategoriesDao(ref.read(databaseProvider));
         final category =
             await categoriesDao.getOrCreateCategory(result.categoryName);
+        debugPrint('[AiNotes] │ Category resolved: "${category.name}" (id=${category.id})');
 
-        await notesNotifier.updateNote(existingNote.copyWith(
-          rewrittenText: result.rewrittenText,
-          categoryId: category.id,
-          categoryName: category.name,
-          confidence: result.confidence,
-          tags: result.tags,
-          isDraft: false,
-        ));
-        debugPrint('[AiNotes] Background: note $noteId updated (${result.categoryName}, ${result.confidence})');
+        // Re-read note after rewrite update
+        final updatedNotes = await ref.read(notesProvider.future);
+        final updatedNote = updatedNotes.where((n) => n.id == noteId).firstOrNull;
+
+        if (updatedNote != null) {
+          debugPrint('[AiNotes] │ DB update 2/2: writing classification + isDraft=false');
+          await notesNotifier.updateNote(updatedNote.copyWith(
+            categoryId: category.id,
+            categoryName: category.name,
+            confidence: result.confidence,
+            tags: result.tags,
+            isDraft: false,
+          ));
+          debugPrint('[AiNotes] │ Note finalized (isDraft=false)');
+        } else {
+          debugPrint('[AiNotes] │ WARNING: note $noteId not found after rewrite update');
+        }
+      } else {
+        debugPrint('[AiNotes] │ WARNING: note $noteId not found in provider state');
       }
 
       // Embed (non-fatal)
@@ -302,9 +385,12 @@ class ProcessingJobNotifier extends StateNotifier<ProcessingJobState> {
       if (embState is Ready && embState.localPath.isNotEmpty) {
         if (embeddingEngine is! MockEmbeddingEngine) {
           try {
+            debugPrint('[AiNotes] │ Loading real embedding model: ${embState.localPath}');
             await embeddingEngine.loadModel(embState.localPath);
             embeddingAvailable = true;
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('[AiNotes] │ Embedding load failed (non-fatal): $e');
+          }
         } else {
           await embeddingEngine.loadModel('');
           embeddingAvailable = true;
@@ -316,16 +402,21 @@ class ProcessingJobNotifier extends StateNotifier<ProcessingJobState> {
 
       if (embeddingAvailable) {
         try {
+          debugPrint('[AiNotes] │ Embedding note $noteId...');
           await pipeline.embedNote(noteId, result.rewrittenText);
-          debugPrint('[AiNotes] Background: note $noteId embedded');
+          debugPrint('[AiNotes] │ Embedding complete');
         } catch (e) {
-          debugPrint('[AiNotes] Background: embedding failed (non-fatal): $e');
+          debugPrint('[AiNotes] │ Embedding failed (non-fatal): $e');
         }
+      } else {
+        debugPrint('[AiNotes] │ Skipping embedding - not available');
       }
 
       state = ProcessingJobState(isProcessing: false, noteId: noteId);
-    } catch (e) {
-      debugPrint('[AiNotes] Background processing failed: $e');
+      debugPrint('[AiNotes] └── processAndUpdate DONE ──');
+    } catch (e, st) {
+      debugPrint('[AiNotes] └── processAndUpdate FAILED: $e');
+      debugPrint('[AiNotes]     Stack trace: $st');
       state = ProcessingJobState(
         isProcessing: false,
         noteId: noteId,

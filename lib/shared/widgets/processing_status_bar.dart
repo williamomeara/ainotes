@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../features/processing/domain/processing_pipeline.dart';
 import '../../features/processing/providers/pipeline_provider.dart';
 
 class ProcessingStatusBar extends ConsumerWidget {
   const ProcessingStatusBar({super.key});
+
+  static const _steps = ProcessingStep.values;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,6 +20,8 @@ class ProcessingStatusBar extends ConsumerWidget {
     }
 
     final step = jobState.currentStep!;
+    final stepNumber = step.index + 1;
+    final totalSteps = _steps.length;
     final colors = Theme.of(context).extension<AppColors>()!;
 
     return Container(
@@ -43,18 +48,26 @@ class ProcessingStatusBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: Spacing.sm),
-          Text(
-            step.label,
-            style: AppTypography.label.copyWith(color: colors.accent),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Text(
+              '${step.label} ($stepNumber/$totalSteps)',
+              key: ValueKey(step),
+              style: AppTypography.label.copyWith(color: colors.accent),
+            ),
           ),
           const SizedBox(width: Spacing.sm),
           Expanded(
-            child: Text(
-              step.detail,
-              style: AppTypography.caption.copyWith(
-                color: colors.textSecondary,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Text(
+                step.detail,
+                key: ValueKey('detail-$step'),
+                style: AppTypography.caption.copyWith(
+                  color: colors.textSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
