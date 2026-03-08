@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/ai/mock_intent_classifier.dart';
 import '../../notes/providers/notes_provider.dart';
 import '../../notes/domain/note_source.dart';
 import '../../ask/providers/chat_provider.dart';
@@ -49,8 +50,11 @@ class UnifiedInputNotifier extends StateNotifier<UnifiedInputState> {
     state = state.copyWith(isProcessing: true, error: null);
 
     try {
-      final classifier = ref.read(intentClassifierProvider);
-      debugPrint('[AiNotes] Classifying intent with ${classifier.runtimeType}...');
+      // Always use fast regex-based classifier for routing decisions.
+      // The LLM intent classifier is too slow for the submit flow (10-20s).
+      // Detailed LLM classification happens in the background pipeline.
+      final classifier = MockIntentClassifier();
+      debugPrint('[AiNotes] Routing with MockIntentClassifier (fast path)');
       final intent = await classifier.classify(text);
       debugPrint('[AiNotes] Intent result: ${intent.runtimeType} - $intent');
 
