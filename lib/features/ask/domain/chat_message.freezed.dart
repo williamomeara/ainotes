@@ -21,6 +21,8 @@ ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) {
       return UserMessage.fromJson(json);
     case 'ai':
       return AiMessage.fromJson(json);
+    case 'thinking':
+      return ThinkingMessage.fromJson(json);
 
     default:
       throw CheckedFromJsonException(
@@ -34,7 +36,6 @@ ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$ChatMessage {
-  String get text => throw _privateConstructorUsedError;
   DateTime get timestamp => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
@@ -45,6 +46,7 @@ mixin _$ChatMessage {
       List<String> sourceNoteIds,
     )
     ai,
+    required TResult Function(String statusText, DateTime timestamp) thinking,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
@@ -55,6 +57,7 @@ mixin _$ChatMessage {
       List<String> sourceNoteIds,
     )?
     ai,
+    TResult? Function(String statusText, DateTime timestamp)? thinking,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
@@ -65,22 +68,26 @@ mixin _$ChatMessage {
       List<String> sourceNoteIds,
     )?
     ai,
+    TResult Function(String statusText, DateTime timestamp)? thinking,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(UserMessage value) user,
     required TResult Function(AiMessage value) ai,
+    required TResult Function(ThinkingMessage value) thinking,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(UserMessage value)? user,
     TResult? Function(AiMessage value)? ai,
+    TResult? Function(ThinkingMessage value)? thinking,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(UserMessage value)? user,
     TResult Function(AiMessage value)? ai,
+    TResult Function(ThinkingMessage value)? thinking,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
 
@@ -101,7 +108,7 @@ abstract class $ChatMessageCopyWith<$Res> {
     $Res Function(ChatMessage) then,
   ) = _$ChatMessageCopyWithImpl<$Res, ChatMessage>;
   @useResult
-  $Res call({String text, DateTime timestamp});
+  $Res call({DateTime timestamp});
 }
 
 /// @nodoc
@@ -118,13 +125,9 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({Object? text = null, Object? timestamp = null}) {
+  $Res call({Object? timestamp = null}) {
     return _then(
       _value.copyWith(
-            text: null == text
-                ? _value.text
-                : text // ignore: cast_nullable_to_non_nullable
-                      as String,
             timestamp: null == timestamp
                 ? _value.timestamp
                 : timestamp // ignore: cast_nullable_to_non_nullable
@@ -233,6 +236,7 @@ class _$UserMessageImpl implements UserMessage {
       List<String> sourceNoteIds,
     )
     ai,
+    required TResult Function(String statusText, DateTime timestamp) thinking,
   }) {
     return user(text, timestamp);
   }
@@ -247,6 +251,7 @@ class _$UserMessageImpl implements UserMessage {
       List<String> sourceNoteIds,
     )?
     ai,
+    TResult? Function(String statusText, DateTime timestamp)? thinking,
   }) {
     return user?.call(text, timestamp);
   }
@@ -261,6 +266,7 @@ class _$UserMessageImpl implements UserMessage {
       List<String> sourceNoteIds,
     )?
     ai,
+    TResult Function(String statusText, DateTime timestamp)? thinking,
     required TResult orElse(),
   }) {
     if (user != null) {
@@ -274,6 +280,7 @@ class _$UserMessageImpl implements UserMessage {
   TResult map<TResult extends Object?>({
     required TResult Function(UserMessage value) user,
     required TResult Function(AiMessage value) ai,
+    required TResult Function(ThinkingMessage value) thinking,
   }) {
     return user(this);
   }
@@ -283,6 +290,7 @@ class _$UserMessageImpl implements UserMessage {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(UserMessage value)? user,
     TResult? Function(AiMessage value)? ai,
+    TResult? Function(ThinkingMessage value)? thinking,
   }) {
     return user?.call(this);
   }
@@ -292,6 +300,7 @@ class _$UserMessageImpl implements UserMessage {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(UserMessage value)? user,
     TResult Function(AiMessage value)? ai,
+    TResult Function(ThinkingMessage value)? thinking,
     required TResult orElse(),
   }) {
     if (user != null) {
@@ -315,7 +324,6 @@ abstract class UserMessage implements ChatMessage {
   factory UserMessage.fromJson(Map<String, dynamic> json) =
       _$UserMessageImpl.fromJson;
 
-  @override
   String get text;
   @override
   DateTime get timestamp;
@@ -453,6 +461,7 @@ class _$AiMessageImpl implements AiMessage {
       List<String> sourceNoteIds,
     )
     ai,
+    required TResult Function(String statusText, DateTime timestamp) thinking,
   }) {
     return ai(text, timestamp, sourceNoteIds);
   }
@@ -467,6 +476,7 @@ class _$AiMessageImpl implements AiMessage {
       List<String> sourceNoteIds,
     )?
     ai,
+    TResult? Function(String statusText, DateTime timestamp)? thinking,
   }) {
     return ai?.call(text, timestamp, sourceNoteIds);
   }
@@ -481,6 +491,7 @@ class _$AiMessageImpl implements AiMessage {
       List<String> sourceNoteIds,
     )?
     ai,
+    TResult Function(String statusText, DateTime timestamp)? thinking,
     required TResult orElse(),
   }) {
     if (ai != null) {
@@ -494,6 +505,7 @@ class _$AiMessageImpl implements AiMessage {
   TResult map<TResult extends Object?>({
     required TResult Function(UserMessage value) user,
     required TResult Function(AiMessage value) ai,
+    required TResult Function(ThinkingMessage value) thinking,
   }) {
     return ai(this);
   }
@@ -503,6 +515,7 @@ class _$AiMessageImpl implements AiMessage {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(UserMessage value)? user,
     TResult? Function(AiMessage value)? ai,
+    TResult? Function(ThinkingMessage value)? thinking,
   }) {
     return ai?.call(this);
   }
@@ -512,6 +525,7 @@ class _$AiMessageImpl implements AiMessage {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(UserMessage value)? user,
     TResult Function(AiMessage value)? ai,
+    TResult Function(ThinkingMessage value)? thinking,
     required TResult orElse(),
   }) {
     if (ai != null) {
@@ -536,7 +550,6 @@ abstract class AiMessage implements ChatMessage {
   factory AiMessage.fromJson(Map<String, dynamic> json) =
       _$AiMessageImpl.fromJson;
 
-  @override
   String get text;
   @override
   DateTime get timestamp;
@@ -547,5 +560,207 @@ abstract class AiMessage implements ChatMessage {
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$AiMessageImplCopyWith<_$AiMessageImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$ThinkingMessageImplCopyWith<$Res>
+    implements $ChatMessageCopyWith<$Res> {
+  factory _$$ThinkingMessageImplCopyWith(
+    _$ThinkingMessageImpl value,
+    $Res Function(_$ThinkingMessageImpl) then,
+  ) = __$$ThinkingMessageImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String statusText, DateTime timestamp});
+}
+
+/// @nodoc
+class __$$ThinkingMessageImplCopyWithImpl<$Res>
+    extends _$ChatMessageCopyWithImpl<$Res, _$ThinkingMessageImpl>
+    implements _$$ThinkingMessageImplCopyWith<$Res> {
+  __$$ThinkingMessageImplCopyWithImpl(
+    _$ThinkingMessageImpl _value,
+    $Res Function(_$ThinkingMessageImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ChatMessage
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? statusText = null, Object? timestamp = null}) {
+    return _then(
+      _$ThinkingMessageImpl(
+        statusText: null == statusText
+            ? _value.statusText
+            : statusText // ignore: cast_nullable_to_non_nullable
+                  as String,
+        timestamp: null == timestamp
+            ? _value.timestamp
+            : timestamp // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ThinkingMessageImpl implements ThinkingMessage {
+  const _$ThinkingMessageImpl({
+    required this.statusText,
+    required this.timestamp,
+    final String? $type,
+  }) : $type = $type ?? 'thinking';
+
+  factory _$ThinkingMessageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ThinkingMessageImplFromJson(json);
+
+  @override
+  final String statusText;
+  @override
+  final DateTime timestamp;
+
+  @JsonKey(name: 'runtimeType')
+  final String $type;
+
+  @override
+  String toString() {
+    return 'ChatMessage.thinking(statusText: $statusText, timestamp: $timestamp)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ThinkingMessageImpl &&
+            (identical(other.statusText, statusText) ||
+                other.statusText == statusText) &&
+            (identical(other.timestamp, timestamp) ||
+                other.timestamp == timestamp));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, statusText, timestamp);
+
+  /// Create a copy of ChatMessage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ThinkingMessageImplCopyWith<_$ThinkingMessageImpl> get copyWith =>
+      __$$ThinkingMessageImplCopyWithImpl<_$ThinkingMessageImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String text, DateTime timestamp) user,
+    required TResult Function(
+      String text,
+      DateTime timestamp,
+      List<String> sourceNoteIds,
+    )
+    ai,
+    required TResult Function(String statusText, DateTime timestamp) thinking,
+  }) {
+    return thinking(statusText, timestamp);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String text, DateTime timestamp)? user,
+    TResult? Function(
+      String text,
+      DateTime timestamp,
+      List<String> sourceNoteIds,
+    )?
+    ai,
+    TResult? Function(String statusText, DateTime timestamp)? thinking,
+  }) {
+    return thinking?.call(statusText, timestamp);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String text, DateTime timestamp)? user,
+    TResult Function(
+      String text,
+      DateTime timestamp,
+      List<String> sourceNoteIds,
+    )?
+    ai,
+    TResult Function(String statusText, DateTime timestamp)? thinking,
+    required TResult orElse(),
+  }) {
+    if (thinking != null) {
+      return thinking(statusText, timestamp);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(UserMessage value) user,
+    required TResult Function(AiMessage value) ai,
+    required TResult Function(ThinkingMessage value) thinking,
+  }) {
+    return thinking(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(UserMessage value)? user,
+    TResult? Function(AiMessage value)? ai,
+    TResult? Function(ThinkingMessage value)? thinking,
+  }) {
+    return thinking?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(UserMessage value)? user,
+    TResult Function(AiMessage value)? ai,
+    TResult Function(ThinkingMessage value)? thinking,
+    required TResult orElse(),
+  }) {
+    if (thinking != null) {
+      return thinking(this);
+    }
+    return orElse();
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ThinkingMessageImplToJson(this);
+  }
+}
+
+abstract class ThinkingMessage implements ChatMessage {
+  const factory ThinkingMessage({
+    required final String statusText,
+    required final DateTime timestamp,
+  }) = _$ThinkingMessageImpl;
+
+  factory ThinkingMessage.fromJson(Map<String, dynamic> json) =
+      _$ThinkingMessageImpl.fromJson;
+
+  String get statusText;
+  @override
+  DateTime get timestamp;
+
+  /// Create a copy of ChatMessage
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ThinkingMessageImplCopyWith<_$ThinkingMessageImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

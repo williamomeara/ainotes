@@ -1,10 +1,9 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/ai/gemma_embedding_engine.dart';
 import '../domain/download_state.dart';
@@ -41,6 +40,18 @@ class ModelManagerState {
   int get downloadedCount =>
       downloadStates.values.whereType<Ready>().length;
 
+  /// Returns the first model that is actively downloading, or null.
+  (MLModel, Downloading)? get activeDownload {
+    for (final model in models) {
+      final ds = downloadStates[model.id];
+      if (ds is Downloading) return (model, ds);
+    }
+    return null;
+  }
+
+  int get downloadingCount =>
+      downloadStates.values.whereType<Downloading>().length;
+
   String get totalSizeFormatted {
     final totalBytes = models.fold<int>(0, (sum, m) => sum + m.sizeBytes);
     if (totalBytes >= 1024 * 1024 * 1024) {
@@ -56,8 +67,6 @@ final modelManagerProvider =
 });
 
 class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
-  StreamSubscription<TaskUpdate>? _updateSubscription;
-
   ModelManagerNotifier()
       : super(ModelManagerState(
           models: ModelRegistry.availableModels,
@@ -67,8 +76,15 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
 
   Future<void> _init() async {
     await _initDownloader();
+    await _clearStaleTasks();
     await _checkLocalModels();
-    await resumeIncompleteDownloads();
+  }
+
+  /// Cancel all leftover tasks and wipe the downloader DB to prevent zombie
+  /// tasks from prior sessions from accumulating and fighting new downloads.
+  Future<void> _clearStaleTasks() async {
+    await FileDownloader().cancelAll();
+    await FileDownloader().database.deleteAllRecords();
   }
 
   Future<void> _initDownloader() async {
@@ -94,51 +110,87 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
       progressBar: true,
     );
 
-    _updateSubscription = FileDownloader().updates.listen(_handleUpdate);
+    // Use callback API instead of the .updates stream. flutter_gemma's
+    // SmartDownloader internally calls FileDownloader().updates.asBroadcastStream()
+    // which fails if anyone has already called .listen() on that single-subscription
+    // stream. The callback API is independent of the stream and avoids the conflict.
+    FileDownloader().registerCallbacks(
+      taskStatusCallback: _handleStatusUpdate,
+      taskProgressCallback: _handleProgressUpdate,
+    );
   }
 
-  void _handleUpdate(TaskUpdate update) {
+  void _handleProgressUpdate(TaskProgressUpdate update) {
     final modelId = update.task.metaData;
     if (modelId.isEmpty) return;
 
-    if (update is TaskProgressUpdate) {
-      if (update.progress >= 0) {
+    if (update.progress >= 0) {
+      final currentState = state.getDownloadState(modelId);
+      final startTime = currentState is Downloading
+          ? (currentState.startTime ?? DateTime.now())
+          : DateTime.now();
+
+      final model = state.models.firstWhere((m) => m.id == modelId);
+      final totalBytes = model.sizeBytes;
+      final downloadedBytes = (update.progress * totalBytes).round();
+
+      _updateState(
+        modelId,
+        DownloadState.downloading(
+          progress: update.progress,
+          downloadedBytes: downloadedBytes,
+          totalBytes: totalBytes,
+          startTime: startTime,
+        ),
+      );
+    }
+  }
+
+  void _handleStatusUpdate(TaskStatusUpdate update) {
+    final modelId = update.task.metaData;
+    if (modelId.isEmpty) return;
+
+    switch (update.status) {
+      case TaskStatus.complete:
+        _onDownloadComplete(modelId, update.task);
+      case TaskStatus.failed:
+        final exception = update.exception;
+        String errorMsg;
+
+        if (exception is TaskHttpException) {
+          final code = exception.httpResponseCode;
+          if (code == 401 || code == 403) {
+            errorMsg =
+                'Authentication required (HTTP $code). Model URL may be gated.';
+          } else if (code == 404) {
+            errorMsg = 'Model file not found (HTTP 404). URL may have changed.';
+          } else {
+            errorMsg = 'HTTP error $code: ${exception.description}';
+          }
+        } else {
+          errorMsg = exception?.description ?? 'Download failed';
+        }
+
+        _updateState(modelId, DownloadState.error(message: errorMsg));
+      case TaskStatus.paused:
+        final currentState = state.getDownloadState(modelId);
+        final progress =
+            currentState is Downloading ? currentState.progress : 0.0;
+        _updateState(modelId, DownloadState.paused(progress: progress));
+      case TaskStatus.canceled:
+        _updateState(modelId, const DownloadState.notStarted());
+      case TaskStatus.enqueued:
+      case TaskStatus.running:
+        // Already handled by progress updates
+        break;
+      case TaskStatus.notFound:
         _updateState(
           modelId,
-          DownloadState.downloading(progress: update.progress),
+          const DownloadState.error(message: 'Task not found'),
         );
-      }
-    } else if (update is TaskStatusUpdate) {
-      switch (update.status) {
-        case TaskStatus.complete:
-          _onDownloadComplete(modelId, update.task);
-        case TaskStatus.failed:
-          _updateState(
-            modelId,
-            DownloadState.error(
-              message: update.exception?.description ?? 'Download failed',
-            ),
-          );
-        case TaskStatus.paused:
-          final currentState = state.getDownloadState(modelId);
-          final progress =
-              currentState is Downloading ? currentState.progress : 0.0;
-          _updateState(modelId, DownloadState.paused(progress: progress));
-        case TaskStatus.canceled:
-          _updateState(modelId, const DownloadState.notStarted());
-        case TaskStatus.enqueued:
-        case TaskStatus.running:
-          // Already handled by progress updates
-          break;
-        case TaskStatus.notFound:
-          _updateState(
-            modelId,
-            const DownloadState.error(message: 'Task not found'),
-          );
-        case TaskStatus.waitingToRetry:
-          // Keep showing current progress during retry wait
-          break;
-      }
+      case TaskStatus.waitingToRetry:
+        // Keep showing current progress during retry wait
+        break;
     }
   }
 
@@ -188,18 +240,52 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
     final states = <String, DownloadState>{};
     for (final model in state.models) {
       if (model.type == MLModelType.embedding) {
-        // flutter_gemma manages its own storage; skip file check
-        states[model.id] = const DownloadState.notStarted();
+        // Check if both embedding model + tokenizer files exist on disk
+        if (await GemmaEmbeddingEngine.isInstalled()) {
+          final paths = await GemmaEmbeddingEngine.localFilePaths();
+          states[model.id] = DownloadState.ready(localPath: paths.modelPath);
+        } else {
+          states[model.id] = const DownloadState.notStarted();
+        }
         continue;
       }
       final path = await _modelFilePath(model);
-      if (path != null && await File(path).exists()) {
+      if (path != null) {
         states[model.id] = DownloadState.ready(localPath: path);
       } else {
         states[model.id] = const DownloadState.notStarted();
       }
     }
     state = state.copyWith(downloadStates: states);
+  }
+
+  /// Pre-flight check: verify URL is accessible before starting a download.
+  /// Returns null if OK, or an error message string.
+  Future<String?> _preflightCheck(String url) async {
+    try {
+      final response = await http
+          .head(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
+      final code = response.statusCode;
+      // 200 = direct, 302/301 = CDN redirect (both fine)
+      if (code >= 200 && code < 400) return null;
+      if (code == 401 || code == 403) {
+        return 'Authentication required for this model URL (HTTP $code).';
+      }
+      if (code == 404) {
+        return 'Model file not found at URL (HTTP $code).';
+      }
+      return 'Unexpected HTTP $code from model URL.';
+    } on SocketException {
+      return 'No network connection. Check your internet and retry.';
+    } on HttpException catch (e) {
+      return 'Network error: ${e.message}';
+    } catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        return 'Connection timed out. Check your internet and retry.';
+      }
+      return 'Network error: $e';
+    }
   }
 
   /// Download a model.
@@ -221,6 +307,13 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
       return;
     }
 
+    // Pre-flight: verify URL is accessible before enqueuing download
+    final preflightError = await _preflightCheck(url);
+    if (preflightError != null) {
+      _updateState(modelId, DownloadState.error(message: preflightError));
+      return;
+    }
+
     _updateState(modelId, const DownloadState.downloading(progress: 0.0));
 
     // Ensure models directory exists (background_downloader doesn't auto-create)
@@ -232,34 +325,20 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
 
     final fileName = Uri.parse(url).pathSegments.last;
 
-    // Use ParallelDownloadTask for large files (>500MB), regular for smaller
-    final Task task;
-    if (model.sizeBytes > 500 * 1024 * 1024) {
-      task = ParallelDownloadTask(
-        url: url,
-        filename: fileName,
-        directory: 'models',
-        baseDirectory: BaseDirectory.applicationDocuments,
-        updates: Updates.statusAndProgress,
-        allowPause: true,
-        retries: 5,
-        requiresWiFi: false, // Allow cellular downloads for development/testing
-        chunks: 4,
-        metaData: modelId,
-      );
-    } else {
-      task = DownloadTask(
-        url: url,
-        filename: fileName,
-        directory: 'models',
-        baseDirectory: BaseDirectory.applicationDocuments,
-        updates: Updates.statusAndProgress,
-        allowPause: true,
-        retries: 5,
-        requiresWiFi: false, // Allow cellular downloads for development/testing
-        metaData: modelId,
-      );
-    }
+    // Use regular DownloadTask instead of ParallelDownloadTask — parallel
+    // chunks are fragile on unstable WiFi (band-hopping kills all chunks
+    // simultaneously, triggering a cascade of WorkManager reschedules).
+    final task = DownloadTask(
+      url: url,
+      filename: fileName,
+      directory: 'models',
+      baseDirectory: BaseDirectory.applicationDocuments,
+      updates: Updates.statusAndProgress,
+      allowPause: true,
+      retries: 5,
+      requiresWiFi: false,
+      metaData: modelId,
+    );
 
     await FileDownloader().enqueue(task);
   }
@@ -325,53 +404,66 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
     }
   }
 
-  /// Download embedding model via flutter_gemma's built-in installer.
-  /// Note: Does not retry on failure to avoid stream listener errors.
+  /// Download embedding model + tokenizer directly via FileDownloader, then
+  /// register with flutter_gemma via file paths. This bypasses flutter_gemma's
+  /// SmartDownloader which has a broadcast stream bug in v0.12.3.
   Future<void> _downloadEmbeddingModel(String modelId) async {
-    // Check if FlutterGemma plugin is available
-    final prefs = await SharedPreferences.getInstance();
-    final gemmaAvailable = prefs.getBool('flutter_gemma_available') ?? false;
-
-    if (!gemmaAvailable) {
-      _updateState(
-        modelId,
-        const DownloadState.error(
-          message:
-              'FlutterGemma plugin not available. Restart app or reinstall.',
-        ),
-      );
+    // Pre-flight: verify both URLs are accessible before starting
+    final modelError =
+        await _preflightCheck(GemmaEmbeddingEngine.modelUrl);
+    if (modelError != null) {
+      _updateState(modelId, DownloadState.error(message: modelError));
+      return;
+    }
+    final tokenizerError =
+        await _preflightCheck(GemmaEmbeddingEngine.tokenizerUrl);
+    if (tokenizerError != null) {
+      _updateState(modelId, DownloadState.error(message: tokenizerError));
       return;
     }
 
-    _updateState(modelId, const DownloadState.downloading(progress: 0.0));
+    final embeddingStartTime = DateTime.now();
+    final model = state.models.firstWhere((m) => m.id == modelId);
+    final totalBytes = model.sizeBytes;
+    _updateState(modelId, DownloadState.downloading(
+      progress: 0.0,
+      totalBytes: totalBytes,
+      startTime: embeddingStartTime,
+    ));
 
     try {
-      // Use flutter_gemma's installer which handles auth/licensing
       await GemmaEmbeddingEngine.installModel(
         onModelProgress: (progress) {
           if (!mounted) return;
-          _updateState(
-              modelId, DownloadState.downloading(progress: progress * 0.9));
+          final p = progress * 0.9;
+          _updateState(modelId, DownloadState.downloading(
+            progress: p,
+            downloadedBytes: (p * totalBytes).round(),
+            totalBytes: totalBytes,
+            startTime: embeddingStartTime,
+          ));
         },
         onTokenizerProgress: (progress) {
           if (!mounted) return;
-          _updateState(modelId,
-              DownloadState.downloading(progress: 0.9 + progress * 0.1));
+          final p = 0.9 + progress * 0.1;
+          _updateState(modelId, DownloadState.downloading(
+            progress: p,
+            downloadedBytes: (p * totalBytes).round(),
+            totalBytes: totalBytes,
+            startTime: embeddingStartTime,
+          ));
         },
       );
 
       if (!mounted) return;
-      _updateState(
-          modelId, const DownloadState.ready(localPath: 'gemma-embedder://'));
+      final paths = await GemmaEmbeddingEngine.localFilePaths();
+      _updateState(modelId, DownloadState.ready(localPath: paths.modelPath));
     } catch (e) {
       if (!mounted) return;
 
-      // Provide actionable error messages
       String errorMsg = 'Install failed: ${e.toString()}';
-      if (e.toString().contains('not installed')) {
-        errorMsg =
-            'FlutterGemma not properly installed. Try restarting the app.';
-      } else if (e.toString().contains('network')) {
+      if (e.toString().contains('network') ||
+          e.toString().contains('Network')) {
         errorMsg = 'Network error. Check connection and retry.';
       }
 
@@ -389,12 +481,19 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
       }
     }
 
-    final currentState = state.getDownloadState(modelId);
-    if (currentState is Ready &&
-        currentState.localPath != 'gemma-embedder://') {
-      final file = File(currentState.localPath);
-      if (await file.exists()) {
-        await file.delete();
+    final model = state.models.firstWhere((m) => m.id == modelId);
+    if (model.type == MLModelType.embedding) {
+      // Delete both model and tokenizer files
+      final paths = await GemmaEmbeddingEngine.localFilePaths();
+      final modelFile = File(paths.modelPath);
+      if (await modelFile.exists()) await modelFile.delete();
+      final tokenizerFile = File(paths.tokenizerPath);
+      if (await tokenizerFile.exists()) await tokenizerFile.delete();
+    } else {
+      final currentState = state.getDownloadState(modelId);
+      if (currentState is Ready) {
+        final file = File(currentState.localPath);
+        if (await file.exists()) await file.delete();
       }
     }
     _updateState(modelId, const DownloadState.notStarted());
@@ -407,21 +506,31 @@ class ModelManagerNotifier extends StateNotifier<ModelManagerState> {
     state = state.copyWith(downloadStates: newStates);
   }
 
-  /// Get the expected local file path for a model.
+  /// Get the local file path for a model, checking multiple locations.
+  /// Returns null if the model file is not found anywhere.
   Future<String?> _modelFilePath(MLModel model) async {
     if (model.type == MLModelType.embedding) return null;
 
     final url = model.downloadUrl;
     if (url == null) return null;
 
-    final dir = await getApplicationDocumentsDirectory();
     final fileName = Uri.parse(url).pathSegments.last;
-    return '${dir.path}/models/$fileName';
+
+    // Primary: app documents dir
+    final dir = await getApplicationDocumentsDirectory();
+    final primary = '${dir.path}/models/$fileName';
+    if (await File(primary).exists()) return primary;
+
+    // Dev fallback: adb push target
+    final devPath = '/data/local/tmp/$fileName';
+    if (await File(devPath).exists()) return devPath;
+
+    return null;
   }
 
   @override
   void dispose() {
-    _updateSubscription?.cancel();
+    FileDownloader().unregisterCallbacks();
     super.dispose();
   }
 }

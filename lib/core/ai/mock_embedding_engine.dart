@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../rag/cosine_similarity.dart' as sim;
 import 'embedding_engine.dart';
 
 /// Mock embedding engine for development and testing.
@@ -70,18 +71,8 @@ class MockEmbeddingEngine implements EmbeddingEngine {
     return vector;
   }
 
-  /// Compute cosine similarity between two embeddings
-  static double cosineSimilarity(List<double> a, List<double> b) {
-    if (a.length != b.length) return 0.0;
-    var dot = 0.0;
-    var normA = 0.0;
-    var normB = 0.0;
-    for (var i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    final denom = sqrt(normA) * sqrt(normB);
-    return denom > 0 ? dot / denom : 0.0;
-  }
+  /// Compute cosine similarity between two embeddings.
+  /// Delegates to shared utility; kept for backwards compatibility in tests.
+  static double cosineSimilarity(List<double> a, List<double> b) =>
+      sim.cosineSimilarity(a, b);
 }

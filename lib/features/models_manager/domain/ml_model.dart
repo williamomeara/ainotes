@@ -54,7 +54,7 @@ abstract final class ModelRegistry {
       name: 'Qwen 2.5 1.5B',
       description: 'General-purpose LLM for rewriting & classification',
       type: MLModelType.llm,
-      sizeBytes: 900 * 1024 * 1024, // 900MB
+      sizeBytes: 1117320736, // ~1065MB (actual HF file size)
       downloadUrl:
           'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf',
     ),
@@ -63,9 +63,9 @@ abstract final class ModelRegistry {
       name: 'EmbeddingGemma 300M',
       description: 'Semantic embeddings for RAG & search',
       type: MLModelType.embedding,
-      sizeBytes: 200 * 1024 * 1024, // 200MB
+      sizeBytes: 179132472, // ~171MB (actual HF file size)
       downloadUrl:
-          'https://huggingface.co/litert-community/embeddinggemma-300m/resolve/main/embeddinggemma-300M_seq1024_mixed-precision.tflite',
+          'https://huggingface.co/kontextdev/embeddinggemma-300m-litertlm/resolve/main/embeddinggemma-300M_seq512_mixed-precision.tflite',
     ),
   ];
 }

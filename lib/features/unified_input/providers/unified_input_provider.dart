@@ -1,20 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/ai/intent_classifier.dart';
-import '../../../core/ai/mock_intent_classifier.dart';
 import '../../notes/providers/notes_provider.dart';
-import '../../notes/domain/note_category.dart';
+import '../../notes/domain/note_source.dart';
 import '../../ask/providers/chat_provider.dart';
 import '../../processing/providers/pipeline_provider.dart';
 import '../domain/input_intent.dart';
 
-// Provider for intent classifier
-final intentClassifierProvider = Provider<IntentClassifier>((ref) {
-  return MockIntentClassifier();
-});
-
-// Unified input state
 class UnifiedInputState {
   final bool isProcessing;
   final String? error;
@@ -32,7 +24,6 @@ class UnifiedInputState {
   }
 }
 
-// Unified input provider
 final unifiedInputProvider =
     StateNotifierProvider<UnifiedInputNotifier, UnifiedInputState>((ref) {
   return UnifiedInputNotifier(ref);
@@ -49,45 +40,63 @@ class UnifiedInputNotifier extends StateNotifier<UnifiedInputState> {
   }
 
   /// Submit input through the pipeline.
-  /// For notes: runs through LLM processing pipeline.
-  /// For questions: routes to Ask tab via RAG.
   Future<void> submitInput(String text, {required NoteSource source}) async {
     if (text.trim().isEmpty) return;
+
+    final preview = text.length > 50 ? '${text.substring(0, 50)}...' : text;
+    debugPrint('[AiNotes] Input received: "$preview" (source: ${source.name})');
 
     state = state.copyWith(isProcessing: true, error: null);
 
     try {
-      // Classify intent
       final classifier = ref.read(intentClassifierProvider);
       final intent = await classifier.classify(text);
+      debugPrint('[AiNotes] Intent classified: $intent');
 
       switch (intent) {
         case NoteIntent():
-          // Process through the LLM pipeline
-          final note =
-              await ref.read(processingJobProvider.notifier).processInput(
-                    text,
-                    source: source,
-                  );
+          debugPrint('[AiNotes] Routing to note creation (async processing)');
+
+          final note = await ref.read(notesProvider.notifier).createNote(
+                originalText: text,
+                rewrittenText: '',
+                categoryName: intent.suggestedCategoryName,
+                confidence: 0.0,
+                source: source,
+                isDraft: true,
+              );
+
           if (note != null) {
-            // Refresh notes list
-            await ref.read(notesProvider.notifier).refresh();
+            debugPrint('[AiNotes] Draft note saved: ${note.id}');
+            state = state.copyWith(isProcessing: false);
+
+            _processInBackground(note.id, text, source);
+          } else {
+            throw Exception('Failed to create note');
           }
           break;
 
         case QuestionIntent(:final question):
-          // Send to chat via RAG
+          debugPrint('[AiNotes] Routing to Ask/RAG');
           await ref.read(chatProvider.notifier).sendMessage(question);
-          // Navigate to Ask tab
           if (_context != null) {
             _context!.go('/ask');
           }
+          debugPrint('[AiNotes] Input processed successfully - routed to Ask');
+          state = state.copyWith(isProcessing: false);
           break;
       }
-
-      state = state.copyWith(isProcessing: false);
     } catch (e) {
+      debugPrint('[AiNotes] Input processing failed: $e');
       state = state.copyWith(isProcessing: false, error: e.toString());
     }
+  }
+
+  void _processInBackground(String noteId, String text, NoteSource source) {
+    ref.read(processingJobProvider.notifier).processAndUpdate(
+          noteId: noteId,
+          rawText: text,
+          source: source,
+        );
   }
 }

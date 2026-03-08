@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import 'processing_status_bar.dart';
 import 'universal_input_bar.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
@@ -24,7 +26,7 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final index = _currentIndex(context);
     final showInputBar = index != 3; // Show on Home, Folders, Ask; NOT on Settings
@@ -34,7 +36,10 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showInputBar) const UniversalInputBar(),
+          if (showInputBar) ...[
+            const ProcessingStatusBar(),
+            const UniversalInputBar(),
+          ],
           BottomNavigationBar(
             currentIndex: index,
             onTap: (i) => context.go(_tabs[i].path),

@@ -5,8 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/category_chip.dart';
+import '../domain/category.dart';
 import '../domain/note.dart';
-import '../domain/note_category.dart';
+import '../providers/categories_provider.dart';
 import '../providers/notes_provider.dart';
 
 class NoteDetailScreen extends ConsumerStatefulWidget {
@@ -61,9 +62,13 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
 
   Widget _buildContent(
       BuildContext context, Note note, List<Note> allNotes, AppColors colors) {
+    final categoriesMap = ref.watch(categoriesMapProvider);
+    final category = categoriesMap[note.categoryId] ??
+        Category.dynamic(id: note.categoryId, name: note.categoryName);
+
     // Find related notes (same category, excluding self)
     final related = allNotes
-        .where((n) => n.id != note.id && n.category == note.category)
+        .where((n) => n.id != note.id && n.categoryId == note.categoryId)
         .take(5)
         .toList();
 
@@ -123,36 +128,43 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                         .deleteNote(note.id);
                     if (context.mounted) Navigator.pop(context);
                   }
-                } else if (value is NoteCategory) {
+                } else if (value is Category) {
                   // Category override
-                  final updated = note.copyWith(category: value);
+                  final updated = note.copyWith(
+                    categoryId: value.id,
+                    categoryName: value.name,
+                  );
                   await ref.read(notesProvider.notifier).updateNote(updated);
                 }
               },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'delete', child: Text('Delete')),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  enabled: false,
-                  child: Text('Change category:'),
-                ),
-                for (final cat in NoteCategory.values)
-                  PopupMenuItem(
-                    value: cat,
-                    child: Row(
-                      children: [
-                        Icon(cat.icon, size: IconSizes.sm),
-                        const SizedBox(width: Spacing.sm),
-                        Text(cat.label),
-                        if (cat == note.category) ...[
-                          const Spacer(),
-                          const Icon(Icons.check, size: IconSizes.sm),
-                        ],
-                      ],
-                    ),
+              itemBuilder: (_) {
+                final allCategories =
+                    ref.read(categoriesProvider).valueOrNull ?? [];
+                return [
+                  const PopupMenuItem(
+                      value: 'delete', child: Text('Delete')),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    enabled: false,
+                    child: Text('Change category:'),
                   ),
-              ],
+                  for (final cat in allCategories)
+                    PopupMenuItem(
+                      value: cat,
+                      child: Row(
+                        children: [
+                          Icon(cat.icon, size: IconSizes.sm),
+                          const SizedBox(width: Spacing.sm),
+                          Text(cat.displayName),
+                          if (cat.id == note.categoryId) ...[
+                            const Spacer(),
+                            const Icon(Icons.check, size: IconSizes.sm),
+                          ],
+                        ],
+                      ),
+                    ),
+                ];
+              },
             ),
           ],
         ],
@@ -170,7 +182,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                 Row(
                   children: [
                     CategoryChip(
-                      category: note.category,
+                      category: category,
                       iconSize: IconSizes.sm,
                       textStyle: AppTypography.label,
                     ),
@@ -267,7 +279,8 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
 
                 // AI Transparency: "Why this category?"
                 const SizedBox(height: Spacing.lg),
-                _WhyThisCategory(note: note, colors: colors),
+                _WhyThisCategory(
+                    note: note, category: category, colors: colors),
 
                 // Related notes
                 if (related.isNotEmpty) ...[
@@ -289,6 +302,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                         final r = related[index];
                         return _MiniNoteCard(
                           note: r,
+                          categoriesMap: categoriesMap,
                           colors: colors,
                           onTap: () => context.push('/note/${r.id}'),
                         );
@@ -361,23 +375,19 @@ class _ConfidenceBadge extends StatelessWidget {
 }
 
 class _WhyThisCategory extends StatelessWidget {
-  const _WhyThisCategory({required this.note, required this.colors});
+  const _WhyThisCategory({
+    required this.note,
+    required this.category,
+    required this.colors,
+  });
 
   final Note note;
+  final Category category;
   final AppColors colors;
 
   @override
   Widget build(BuildContext context) {
-    final reason = switch (note.category) {
-      NoteCategory.shopping =>
-        'Contains shopping-related terms like items to buy or grocery references.',
-      NoteCategory.todos =>
-        'Contains task-related language like reminders or to-do items.',
-      NoteCategory.ideas =>
-        'Contains creative or conceptual language suggesting brainstorming.',
-      NoteCategory.general =>
-        'General note that doesn\'t strongly match other categories.',
-    };
+    final confidencePercent = (note.confidence * 100).round();
 
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
@@ -397,11 +407,12 @@ class _WhyThisCategory extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Why ${note.category.label}?',
+                Text('Why ${category.displayName}?',
                     style: AppTypography.caption
                         .copyWith(color: colors.textSecondary)),
                 const SizedBox(height: 2),
-                Text(reason,
+                Text(
+                    'AI classified this note as ${category.displayName} with $confidencePercent% confidence.',
                     style: AppTypography.caption
                         .copyWith(color: colors.textTertiary)),
               ],
@@ -453,17 +464,21 @@ class _ToggleChip extends StatelessWidget {
 class _MiniNoteCard extends StatelessWidget {
   const _MiniNoteCard({
     required this.note,
+    required this.categoriesMap,
     required this.colors,
     required this.onTap,
   });
 
   final Note note;
+  final Map<int, Category> categoriesMap;
   final AppColors colors;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = note.category.color(colors);
+    final category = categoriesMap[note.categoryId] ??
+        Category.dynamic(id: note.categoryId, name: note.categoryName);
+    final categoryColor = category.color;
 
     return GestureDetector(
       onTap: onTap,
@@ -482,10 +497,10 @@ class _MiniNoteCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(note.category.icon,
+                Icon(category.icon,
                     size: IconSizes.xs, color: categoryColor),
                 const SizedBox(width: 4),
-                Text(note.category.label,
+                Text(category.displayName,
                     style: AppTypography.caption
                         .copyWith(color: categoryColor)),
               ],

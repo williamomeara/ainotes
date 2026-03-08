@@ -14,7 +14,7 @@ class MockLLMEngine implements LLMEngine {
   }
 
   @override
-  Stream<String> generateStream(String prompt) async* {
+  Stream<String> generateStream(String prompt, {int? maxTokens, double? temperature}) async* {
     _checkLoaded();
     final response = await generate(prompt);
     // Simulate streaming token by token
@@ -26,7 +26,7 @@ class MockLLMEngine implements LLMEngine {
   }
 
   @override
-  Future<String> generate(String prompt) async {
+  Future<String> generate(String prompt, {int? maxTokens, double? temperature}) async {
     _checkLoaded();
     await Future.delayed(const Duration(milliseconds: 200));
 
@@ -37,7 +37,12 @@ class MockLLMEngine implements LLMEngine {
       return _mockRewrite(prompt);
     }
 
-    // Classification prompt
+    // Combined classify + tag prompt
+    if (lower.contains('classify') && lower.contains('tags')) {
+      return _mockClassifyAndTag(prompt);
+    }
+
+    // Classification prompt (legacy)
     if (lower.contains('classify') || lower.contains('category')) {
       return _mockClassify(prompt);
     }
@@ -109,6 +114,42 @@ class MockLLMEngine implements LLMEngine {
       return '{"category": "ideas", "confidence": 0.85}';
     }
     return '{"category": "general", "confidence": 0.75}';
+  }
+
+  String _mockClassifyAndTag(String prompt) {
+    // Extract just the user's text from the prompt (after last "Text:")
+    final textMatch = RegExp(r'Text:\s*"?([^"]*)"?\s*$').firstMatch(prompt);
+    final userText = (textMatch?.group(1) ?? prompt).toLowerCase();
+
+    String category = 'general';
+    double confidence = 0.75;
+    List<String> tags = ['notes'];
+
+    if (RegExp(r'\b(buy|grocery|groceries|shop|pick up|store)\b').hasMatch(userText)) {
+      category = 'shopping';
+      confidence = 0.92;
+      tags = ['groceries', 'weekly'];
+    } else if (RegExp(r'\b(remind|todo|task|need to|call|send|schedule)\b').hasMatch(userText)) {
+      category = 'todos';
+      confidence = 0.88;
+      tags = ['tasks', 'reminder'];
+    } else if (RegExp(r'\b(idea|concept|brainstorm|maybe|could)\b').hasMatch(userText)) {
+      category = 'ideas';
+      confidence = 0.85;
+      tags = ['ideas', 'creative'];
+    }
+
+    if (RegExp(r'\b(milk|food|eggs|bread)\b').hasMatch(userText)) {
+      tags = ['groceries', 'weekly'];
+    }
+    if (RegExp(r'\b(work|meeting|report)\b').hasMatch(userText)) {
+      tags = ['work', 'professional'];
+    }
+    if (RegExp(r'\b(dentist|doctor|appointment)\b').hasMatch(userText)) {
+      tags = ['health', 'appointment'];
+    }
+
+    return '{"category": "$category", "confidence": $confidence, "tags": ${tags.map((t) => '"$t"').toList()}}';
   }
 
   String _mockExtractTags(String prompt) {

@@ -1,6 +1,7 @@
 @Tags(['manual'])
 library;
 
+import 'dart:math' as dartmath;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
@@ -205,5 +206,3 @@ double _calculateMagnitude(List<double> vector) {
 extension on double {
   double sqrt() => this < 0 ? 0 : dartmath.sqrt(this);
 }
-
-import 'dart:math' as dartmath;

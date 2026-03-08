@@ -20,7 +20,13 @@ mixin _$DownloadState {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
-    required TResult Function(double progress) downloading,
+    required TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )
+    downloading,
     required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
@@ -28,7 +34,13 @@ mixin _$DownloadState {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
-    TResult? Function(double progress)? downloading,
+    TResult? Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
@@ -36,7 +48,13 @@ mixin _$DownloadState {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
-    TResult Function(double progress)? downloading,
+    TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
@@ -135,7 +153,13 @@ class _$NotStartedImpl implements NotStarted {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
-    required TResult Function(double progress) downloading,
+    required TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )
+    downloading,
     required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
@@ -147,7 +171,13 @@ class _$NotStartedImpl implements NotStarted {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
-    TResult? Function(double progress)? downloading,
+    TResult? Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
@@ -159,7 +189,13 @@ class _$NotStartedImpl implements NotStarted {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
-    TResult Function(double progress)? downloading,
+    TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
@@ -223,7 +259,12 @@ abstract class _$$DownloadingImplCopyWith<$Res> {
     $Res Function(_$DownloadingImpl) then,
   ) = __$$DownloadingImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({double progress});
+  $Res call({
+    double progress,
+    int downloadedBytes,
+    int totalBytes,
+    DateTime? startTime,
+  });
 }
 
 /// @nodoc
@@ -239,13 +280,30 @@ class __$$DownloadingImplCopyWithImpl<$Res>
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({Object? progress = null}) {
+  $Res call({
+    Object? progress = null,
+    Object? downloadedBytes = null,
+    Object? totalBytes = null,
+    Object? startTime = freezed,
+  }) {
     return _then(
       _$DownloadingImpl(
         progress: null == progress
             ? _value.progress
             : progress // ignore: cast_nullable_to_non_nullable
                   as double,
+        downloadedBytes: null == downloadedBytes
+            ? _value.downloadedBytes
+            : downloadedBytes // ignore: cast_nullable_to_non_nullable
+                  as int,
+        totalBytes: null == totalBytes
+            ? _value.totalBytes
+            : totalBytes // ignore: cast_nullable_to_non_nullable
+                  as int,
+        startTime: freezed == startTime
+            ? _value.startTime
+            : startTime // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -254,14 +312,27 @@ class __$$DownloadingImplCopyWithImpl<$Res>
 /// @nodoc
 
 class _$DownloadingImpl implements Downloading {
-  const _$DownloadingImpl({required this.progress});
+  const _$DownloadingImpl({
+    required this.progress,
+    this.downloadedBytes = 0,
+    this.totalBytes = 0,
+    this.startTime,
+  });
 
   @override
   final double progress;
+  @override
+  @JsonKey()
+  final int downloadedBytes;
+  @override
+  @JsonKey()
+  final int totalBytes;
+  @override
+  final DateTime? startTime;
 
   @override
   String toString() {
-    return 'DownloadState.downloading(progress: $progress)';
+    return 'DownloadState.downloading(progress: $progress, downloadedBytes: $downloadedBytes, totalBytes: $totalBytes, startTime: $startTime)';
   }
 
   @override
@@ -270,11 +341,23 @@ class _$DownloadingImpl implements Downloading {
         (other.runtimeType == runtimeType &&
             other is _$DownloadingImpl &&
             (identical(other.progress, progress) ||
-                other.progress == progress));
+                other.progress == progress) &&
+            (identical(other.downloadedBytes, downloadedBytes) ||
+                other.downloadedBytes == downloadedBytes) &&
+            (identical(other.totalBytes, totalBytes) ||
+                other.totalBytes == totalBytes) &&
+            (identical(other.startTime, startTime) ||
+                other.startTime == startTime));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, progress);
+  int get hashCode => Object.hash(
+    runtimeType,
+    progress,
+    downloadedBytes,
+    totalBytes,
+    startTime,
+  );
 
   /// Create a copy of DownloadState
   /// with the given fields replaced by the non-null parameter values.
@@ -288,38 +371,56 @@ class _$DownloadingImpl implements Downloading {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
-    required TResult Function(double progress) downloading,
+    required TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )
+    downloading,
     required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
   }) {
-    return downloading(progress);
+    return downloading(progress, downloadedBytes, totalBytes, startTime);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
-    TResult? Function(double progress)? downloading,
+    TResult? Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
   }) {
-    return downloading?.call(progress);
+    return downloading?.call(progress, downloadedBytes, totalBytes, startTime);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
-    TResult Function(double progress)? downloading,
+    TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (downloading != null) {
-      return downloading(progress);
+      return downloading(progress, downloadedBytes, totalBytes, startTime);
     }
     return orElse();
   }
@@ -366,10 +467,17 @@ class _$DownloadingImpl implements Downloading {
 }
 
 abstract class Downloading implements DownloadState {
-  const factory Downloading({required final double progress}) =
-      _$DownloadingImpl;
+  const factory Downloading({
+    required final double progress,
+    final int downloadedBytes,
+    final int totalBytes,
+    final DateTime? startTime,
+  }) = _$DownloadingImpl;
 
   double get progress;
+  int get downloadedBytes;
+  int get totalBytes;
+  DateTime? get startTime;
 
   /// Create a copy of DownloadState
   /// with the given fields replaced by the non-null parameter values.
@@ -450,7 +558,13 @@ class _$PausedImpl implements Paused {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
-    required TResult Function(double progress) downloading,
+    required TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )
+    downloading,
     required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
@@ -462,7 +576,13 @@ class _$PausedImpl implements Paused {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
-    TResult? Function(double progress)? downloading,
+    TResult? Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
@@ -474,7 +594,13 @@ class _$PausedImpl implements Paused {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
-    TResult Function(double progress)? downloading,
+    TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
@@ -611,7 +737,13 @@ class _$ReadyImpl implements Ready {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
-    required TResult Function(double progress) downloading,
+    required TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )
+    downloading,
     required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
@@ -623,7 +755,13 @@ class _$ReadyImpl implements Ready {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
-    TResult? Function(double progress)? downloading,
+    TResult? Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
@@ -635,7 +773,13 @@ class _$ReadyImpl implements Ready {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
-    TResult Function(double progress)? downloading,
+    TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,
@@ -771,7 +915,13 @@ class _$DownloadErrorImpl implements DownloadError {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() notStarted,
-    required TResult Function(double progress) downloading,
+    required TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )
+    downloading,
     required TResult Function(double progress) paused,
     required TResult Function(String localPath) ready,
     required TResult Function(String message) error,
@@ -783,7 +933,13 @@ class _$DownloadErrorImpl implements DownloadError {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? notStarted,
-    TResult? Function(double progress)? downloading,
+    TResult? Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult? Function(double progress)? paused,
     TResult? Function(String localPath)? ready,
     TResult? Function(String message)? error,
@@ -795,7 +951,13 @@ class _$DownloadErrorImpl implements DownloadError {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? notStarted,
-    TResult Function(double progress)? downloading,
+    TResult Function(
+      double progress,
+      int downloadedBytes,
+      int totalBytes,
+      DateTime? startTime,
+    )?
+    downloading,
     TResult Function(double progress)? paused,
     TResult Function(String localPath)? ready,
     TResult Function(String message)? error,

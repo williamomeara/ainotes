@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/category_chip.dart';
 import '../../../shared/widgets/source_icon.dart';
+import '../../notes/domain/category.dart';
 import '../../notes/domain/note.dart';
+import '../../notes/providers/categories_provider.dart';
 
-class NoteCard extends StatelessWidget {
+class NoteCard extends ConsumerWidget {
   const NoteCard({super.key, required this.note});
 
   final Note note;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).extension<AppColors>()!;
-    final categoryColor = note.category.color(colors);
+    final categoriesMap = ref.watch(categoriesMapProvider);
+    final category = categoriesMap[note.categoryId] ??
+        Category.dynamic(id: note.categoryId, name: note.categoryName);
+    final categoryColor = category.color;
 
     return GestureDetector(
       onTap: () => context.push('/note/${note.id}'),
@@ -43,7 +49,7 @@ class NoteCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHeader(colors),
+                        _buildHeader(colors, category),
                         const SizedBox(height: Spacing.md),
                         _buildBody(colors),
                         if (note.tags.isNotEmpty) _buildTags(colors),
@@ -60,10 +66,10 @@ class NoteCard extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(AppColors colors) {
+  Widget _buildHeader(AppColors colors, Category category) {
     return Row(
               children: [
-                CategoryChip(category: note.category),
+                CategoryChip(category: category),
                 const SizedBox(width: Spacing.sm),
                 SourceIcon(source: note.source),
                 const Spacer(),

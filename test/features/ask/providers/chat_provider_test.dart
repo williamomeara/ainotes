@@ -1,30 +1,38 @@
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ainotes/core/ai/mock_embedding_engine.dart';
 import 'package:ainotes/core/ai/mock_llm_engine.dart';
+import 'package:ainotes/core/storage/database.dart';
+import 'package:ainotes/core/storage/database_provider.dart';
+import 'package:ainotes/core/storage/vector_store.dart';
 import 'package:ainotes/features/ask/domain/chat_message.dart';
 import 'package:ainotes/features/ask/providers/chat_provider.dart';
-import 'package:ainotes/features/notes/domain/note.dart';
-import 'package:ainotes/features/notes/domain/note_category.dart';
+import 'package:ainotes/features/notes/domain/note_source.dart';
 import 'package:ainotes/features/notes/providers/notes_provider.dart';
 import 'package:ainotes/features/processing/providers/pipeline_provider.dart';
 
 void main() {
   group('ChatProvider', () {
     late ProviderContainer container;
+    late AppDatabase db;
 
     setUp(() {
+      db = AppDatabase(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [
+          databaseProvider.overrideWithValue(db),
           llmEngineProvider.overrideWithValue(MockLLMEngine()),
           embeddingEngineProvider.overrideWithValue(MockEmbeddingEngine()),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
         ],
       );
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      await db.close();
     });
 
     test('sendMessage adds user message immediately', () async {
@@ -35,7 +43,7 @@ void main() {
       final state = container.read(chatProvider);
       expect(state.length, greaterThanOrEqualTo(1));
       expect(state.first, isA<UserMessage>());
-      expect(state.first.text, 'Hello');
+      expect((state.first as UserMessage).text, 'Hello');
     });
 
     test('RAG integration returns AI response', () async {
@@ -44,7 +52,7 @@ void main() {
       await notesNotifier.createNote(
         originalText: 'Buy milk and eggs',
         rewrittenText: 'Shopping list: milk, eggs',
-        category: NoteCategory.shopping,
+        categoryName: 'shopping',
         source: NoteSource.text,
       );
 
@@ -61,24 +69,31 @@ void main() {
     });
 
     test('AI response includes sources when notes exist', () async {
-      // Create a note
+      // Create a note with text that overlaps heavily with the query
       final notesNotifier = container.read(notesProvider.notifier);
       final note = await notesNotifier.createNote(
-        originalText: 'Project deadline is next Friday',
-        rewrittenText: 'Project deadline: next Friday',
-        category: NoteCategory.general,
+        originalText: 'Buy milk and eggs from the grocery store',
+        rewrittenText: 'Buy milk and eggs from the grocery store',
+        categoryName: 'shopping',
         source: NoteSource.text,
       );
 
+      // Load embedding engine and embed the note so RAG can find it
+      final embedding = container.read(embeddingEngineProvider);
+      await embedding.loadModel('');
+      final pipeline = container.read(processingPipelineProvider);
+      await pipeline.embedNote(note!.id, note.rewrittenText);
+
+      // Query with significant word overlap for mock embeddings
       final chatNotifier = container.read(chatProvider.notifier);
-      await chatNotifier.sendMessage('When is my project due?');
+      await chatNotifier.sendMessage('Buy milk from the grocery store');
 
       final state = container.read(chatProvider);
       final aiMessages = state.whereType<AiMessage>().toList();
 
       expect(aiMessages, isNotEmpty);
       expect(aiMessages.first.sourceNoteIds, isNotEmpty);
-      expect(aiMessages.first.sourceNoteIds, contains(note!.id));
+      expect(aiMessages.first.sourceNoteIds, contains(note.id));
     });
 
     test('error handling when no notes exist', () async {

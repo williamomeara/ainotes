@@ -9,12 +9,12 @@ void main() {
     late RAGEngine rag;
     late MockLLMEngine llm;
     late MockEmbeddingEngine embedding;
-    late VectorStore vectorStore;
+    late InMemoryVectorStore vectorStore;
 
     setUp(() async {
       llm = MockLLMEngine();
       embedding = MockEmbeddingEngine();
-      vectorStore = VectorStore();
+      vectorStore = InMemoryVectorStore();
       rag = RAGEngine(
         llmEngine: llm,
         embeddingEngine: embedding,
@@ -41,11 +41,12 @@ void main() {
 
     test('query returns answer with sources', () async {
       await rag.indexNote(
-          noteId: 'note-1', text: 'Buy milk and eggs');
+          noteId: 'note-1', text: 'Buy milk and eggs from the store');
       await rag.indexNote(
           noteId: 'note-2', text: 'Call the dentist tomorrow');
 
-      final result = await rag.query('What groceries do I need?');
+      // Use overlapping words so mock embeddings produce meaningful similarity
+      final result = await rag.query('Buy milk from the store');
       expect(result.answer, isNotEmpty);
       expect(result.sourceNoteIds, isNotEmpty);
     });

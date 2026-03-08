@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
-import '../../notes/domain/note_category.dart';
+import '../../notes/providers/categories_provider.dart';
 import '../../notes/providers/notes_provider.dart';
 
 class FilterChipsRow extends ConsumerWidget {
@@ -13,6 +13,7 @@ class FilterChipsRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final selected = ref.watch(selectedCategoryProvider);
+    final categories = ref.watch(categoriesProvider).valueOrNull ?? [];
 
     return SizedBox(
       height: 40,
@@ -28,14 +29,14 @@ class FilterChipsRow extends ConsumerWidget {
             onTap: () =>
                 ref.read(selectedCategoryProvider.notifier).state = null,
           ),
-          for (final cat in NoteCategory.values)
+          for (final cat in categories)
             _chip(
-              label: cat.label,
-              selected: selected == cat,
-              color: cat.color(colors),
+              label: cat.displayName,
+              selected: selected == cat.id,
+              color: cat.color,
               colors: colors,
               onTap: () =>
-                  ref.read(selectedCategoryProvider.notifier).state = cat,
+                  ref.read(selectedCategoryProvider.notifier).state = cat.id,
             ),
         ],
       ),

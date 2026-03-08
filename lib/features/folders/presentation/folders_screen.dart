@@ -4,9 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../notes/domain/category.dart';
+import '../../notes/providers/categories_provider.dart';
 import '../../notes/providers/notes_provider.dart';
 import '../../notes/domain/note.dart';
-import '../../notes/domain/note_category.dart';
 
 class FoldersScreen extends ConsumerWidget {
   const FoldersScreen({super.key});
@@ -15,6 +16,7 @@ class FoldersScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final notesAsync = ref.watch(notesProvider);
+    final categoriesMap = ref.watch(categoriesMapProvider);
 
     return SafeArea(
       child: CustomScrollView(
@@ -39,17 +41,24 @@ class FoldersScreen extends ConsumerWidget {
               child: Center(child: Text('Error: $err')),
             ),
             data: (notes) {
-              // Group notes by category
-              final grouped = <NoteCategory, List<Note>>{};
+              // Group notes by categoryId
+              final grouped = <int, List<Note>>{};
               for (final note in notes) {
-                grouped.putIfAbsent(note.category, () => []).add(note);
+                grouped.putIfAbsent(note.categoryId, () => []).add(note);
               }
+
+              final categoryIds = grouped.keys.toList();
 
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final category = grouped.keys.elementAt(index);
-                    final categoryNotes = grouped[category]!;
+                    final categoryId = categoryIds[index];
+                    final categoryNotes = grouped[categoryId]!;
+                    final category = categoriesMap[categoryId] ??
+                        Category.dynamic(
+                          id: categoryId,
+                          name: categoryNotes.first.categoryName,
+                        );
 
                     return _CategorySection(
                       category: category,
@@ -78,7 +87,7 @@ class _CategorySection extends StatelessWidget {
     required this.colors,
   });
 
-  final NoteCategory category;
+  final Category category;
   final List<Note> notes;
   final AppColors colors;
 
@@ -92,10 +101,10 @@ class _CategorySection extends StatelessWidget {
           // Category header
           Row(
             children: [
-              Icon(category.icon, size: 20, color: category.color(colors)),
+              Icon(category.icon, size: 20, color: category.color),
               const SizedBox(width: Spacing.sm),
               Text(
-                '${category.label} (${notes.length})',
+                '${category.displayName} (${notes.length})',
                 style: AppTypography.heading3.copyWith(color: colors.textPrimary),
               ),
             ],

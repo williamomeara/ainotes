@@ -39,3 +39,19 @@ Map<String, dynamic> _$$AiMessageImplToJson(_$AiMessageImpl instance) =>
       'sourceNoteIds': instance.sourceNoteIds,
       'runtimeType': instance.$type,
     };
+
+_$ThinkingMessageImpl _$$ThinkingMessageImplFromJson(
+  Map<String, dynamic> json,
+) => _$ThinkingMessageImpl(
+  statusText: json['statusText'] as String,
+  timestamp: DateTime.parse(json['timestamp'] as String),
+  $type: json['runtimeType'] as String?,
+);
+
+Map<String, dynamic> _$$ThinkingMessageImplToJson(
+  _$ThinkingMessageImpl instance,
+) => <String, dynamic>{
+  'statusText': instance.statusText,
+  'timestamp': instance.timestamp.toIso8601String(),
+  'runtimeType': instance.$type,
+};

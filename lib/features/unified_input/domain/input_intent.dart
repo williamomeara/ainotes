@@ -1,13 +1,11 @@
-import '../../notes/domain/note_category.dart';
-
 sealed class InputIntent {}
 
 class NoteIntent extends InputIntent {
-  final NoteCategory suggestedCategory;
+  final String suggestedCategoryName;
   final String cleanedText;
 
   NoteIntent({
-    required this.suggestedCategory,
+    required this.suggestedCategoryName,
     required this.cleanedText,
   });
 }
