@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../shared/widgets/gradient_button.dart';
-import '../../notes/domain/note_category.dart';
+import '../../notes/domain/note_source.dart';
 import '../../unified_input/providers/unified_input_provider.dart';
 
 class PhotoCaptureScreen extends ConsumerStatefulWidget {

@@ -1,28 +1,36 @@
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ainotes/core/ai/mock_embedding_engine.dart';
 import 'package:ainotes/core/ai/mock_llm_engine.dart';
-import 'package:ainotes/features/notes/domain/note.dart';
-import 'package:ainotes/features/notes/domain/note_category.dart';
+import 'package:ainotes/core/storage/database.dart';
+import 'package:ainotes/core/storage/database_provider.dart';
+import 'package:ainotes/core/storage/vector_store.dart';
+import 'package:ainotes/features/notes/domain/note_source.dart';
 import 'package:ainotes/features/processing/domain/processing_pipeline.dart';
 import 'package:ainotes/features/processing/providers/pipeline_provider.dart';
 
 void main() {
   group('ProcessingJobProvider', () {
     late ProviderContainer container;
+    late AppDatabase db;
 
     setUp(() {
+      db = AppDatabase(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [
+          databaseProvider.overrideWithValue(db),
           llmEngineProvider.overrideWithValue(MockLLMEngine()),
           embeddingEngineProvider.overrideWithValue(MockEmbeddingEngine()),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
         ],
       );
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      await db.close();
     });
 
     test('processInput creates note with rewritten text', () async {
@@ -67,7 +75,7 @@ void main() {
       final note = await notifier.processInput('Buy milk and eggs');
 
       expect(note, isNotNull);
-      expect(note!.category, NoteCategory.shopping);
+      expect(note!.categoryName, 'shopping');
       expect(note.confidence, greaterThan(0.8));
     });
 
@@ -77,7 +85,7 @@ void main() {
       final note = await notifier.processInput('Remind me to call dentist');
 
       expect(note, isNotNull);
-      expect(note!.category, NoteCategory.todos);
+      expect(note!.categoryName, 'todos');
     });
 
     test('extracts tags from note text', () async {
@@ -94,10 +102,13 @@ void main() {
 
     test('error handling when LLM fails', () async {
       // Override with a failing mock
+      final failingDb = AppDatabase(NativeDatabase.memory());
       final failingContainer = ProviderContainer(
         overrides: [
+          databaseProvider.overrideWithValue(failingDb),
           llmEngineProvider.overrideWithValue(_FailingLLMEngine()),
           embeddingEngineProvider.overrideWithValue(MockEmbeddingEngine()),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
         ],
       );
 
@@ -109,6 +120,7 @@ void main() {
       expect(failingContainer.read(processingJobProvider).error, isNotNull);
 
       failingContainer.dispose();
+      await failingDb.close();
     });
 
     test('reset clears processing state', () async {
@@ -148,7 +160,7 @@ void main() {
 /// A failing LLM engine for testing error handling.
 class _FailingLLMEngine extends MockLLMEngine {
   @override
-  Future<String> generate(String prompt) async {
+  Future<String> generate(String prompt, {int? maxTokens, double? temperature}) async {
     throw Exception('LLM generation failed');
   }
 }

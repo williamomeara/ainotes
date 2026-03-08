@@ -1,12 +1,14 @@
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ainotes/core/ai/embedding_engine.dart';
 import 'package:ainotes/core/ai/gemma_embedding_engine.dart';
 import 'package:ainotes/core/ai/llamadart_engine.dart';
-import 'package:ainotes/core/ai/llm_engine.dart';
 import 'package:ainotes/core/ai/mock_embedding_engine.dart';
 import 'package:ainotes/core/ai/mock_llm_engine.dart';
+import 'package:ainotes/core/storage/database.dart';
+import 'package:ainotes/core/storage/database_provider.dart';
+import 'package:ainotes/core/storage/vector_store.dart';
 import 'package:ainotes/features/models_manager/domain/download_state.dart';
 import 'package:ainotes/features/models_manager/providers/model_manager_provider.dart';
 import 'package:ainotes/features/processing/providers/pipeline_provider.dart';
@@ -14,13 +16,21 @@ import 'package:ainotes/features/processing/providers/pipeline_provider.dart';
 void main() {
   group('PipelineProvider', () {
     late ProviderContainer container;
+    late AppDatabase db;
 
     setUp(() {
-      container = ProviderContainer();
+      db = AppDatabase(NativeDatabase.memory());
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
+        ],
+      );
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      await db.close();
     });
 
     test('llmEngineProvider returns MockLLMEngine when model not ready', () {
@@ -37,8 +47,10 @@ void main() {
     test('auto-switching: mock → native when LLM model ready', () {
       final mockContainer = ProviderContainer(
         overrides: [
-          modelManagerProvider.overrideWithValue(
-            _createMockModelManagerState(
+          databaseProvider.overrideWithValue(db),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
+          modelManagerProvider.overrideWith(
+            (_) => _MockModelManagerNotifier(
               llmReady: true,
               embeddingReady: false,
             ),
@@ -58,8 +70,10 @@ void main() {
     test('auto-switching: mock → native when embedding model ready', () {
       final mockContainer = ProviderContainer(
         overrides: [
-          modelManagerProvider.overrideWithValue(
-            _createMockModelManagerState(
+          databaseProvider.overrideWithValue(db),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
+          modelManagerProvider.overrideWith(
+            (_) => _MockModelManagerNotifier(
               llmReady: false,
               embeddingReady: true,
             ),
@@ -79,8 +93,10 @@ void main() {
     test('auto-switching: both engines use native when both models ready', () {
       final mockContainer = ProviderContainer(
         overrides: [
-          modelManagerProvider.overrideWithValue(
-            _createMockModelManagerState(
+          databaseProvider.overrideWithValue(db),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
+          modelManagerProvider.overrideWith(
+            (_) => _MockModelManagerNotifier(
               llmReady: true,
               embeddingReady: true,
             ),
@@ -112,20 +128,22 @@ void main() {
   });
 }
 
-/// Create mock model manager state for testing
-ModelManagerState _createMockModelManagerState({
-  required bool llmReady,
-  required bool embeddingReady,
-}) {
-  return ModelManagerState(
-    models: const [],
-    downloadStates: {
-      'qwen-2.5-1.5b': llmReady
-          ? const DownloadState.ready(localPath: '/fake/path/model.gguf')
-          : const DownloadState.notStarted(),
-      'embedding-gemma-300m': embeddingReady
-          ? const DownloadState.ready(localPath: 'gemma-embedder://')
-          : const DownloadState.notStarted(),
-    },
-  );
+/// Mock model manager notifier for testing auto-switching behavior.
+class _MockModelManagerNotifier extends ModelManagerNotifier {
+  _MockModelManagerNotifier({
+    required bool llmReady,
+    required bool embeddingReady,
+  }) : super() {
+    state = ModelManagerState(
+      models: const [],
+      downloadStates: {
+        'qwen-2.5-1.5b': llmReady
+            ? const DownloadState.ready(localPath: '/fake/path/model.gguf')
+            : const DownloadState.notStarted(),
+        'embedding-gemma-300m': embeddingReady
+            ? const DownloadState.ready(localPath: 'gemma-embedder://')
+            : const DownloadState.notStarted(),
+      },
+    );
+  }
 }

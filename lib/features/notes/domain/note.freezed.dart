@@ -24,15 +24,15 @@ mixin _$Note {
   String get id => throw _privateConstructorUsedError;
   String get originalText => throw _privateConstructorUsedError;
   String get rewrittenText => throw _privateConstructorUsedError;
-  NoteCategory get category => throw _privateConstructorUsedError;
-  String? get customCategory => throw _privateConstructorUsedError;
+  int get categoryId => throw _privateConstructorUsedError;
+  String get categoryName => throw _privateConstructorUsedError;
   double get confidence => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt => throw _privateConstructorUsedError;
   List<String> get tags => throw _privateConstructorUsedError;
   NoteSource get source => throw _privateConstructorUsedError;
   Duration? get audioDuration => throw _privateConstructorUsedError;
-  String? get filePath => throw _privateConstructorUsedError;
+  bool get isDraft => throw _privateConstructorUsedError;
 
   /// Serializes this Note to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -52,15 +52,15 @@ abstract class $NoteCopyWith<$Res> {
     String id,
     String originalText,
     String rewrittenText,
-    NoteCategory category,
-    String? customCategory,
+    int categoryId,
+    String categoryName,
     double confidence,
     DateTime createdAt,
     DateTime? updatedAt,
     List<String> tags,
     NoteSource source,
     Duration? audioDuration,
-    String? filePath,
+    bool isDraft,
   });
 }
 
@@ -82,15 +82,15 @@ class _$NoteCopyWithImpl<$Res, $Val extends Note>
     Object? id = null,
     Object? originalText = null,
     Object? rewrittenText = null,
-    Object? category = null,
-    Object? customCategory = freezed,
+    Object? categoryId = null,
+    Object? categoryName = null,
     Object? confidence = null,
     Object? createdAt = null,
     Object? updatedAt = freezed,
     Object? tags = null,
     Object? source = null,
     Object? audioDuration = freezed,
-    Object? filePath = freezed,
+    Object? isDraft = null,
   }) {
     return _then(
       _value.copyWith(
@@ -106,14 +106,14 @@ class _$NoteCopyWithImpl<$Res, $Val extends Note>
                 ? _value.rewrittenText
                 : rewrittenText // ignore: cast_nullable_to_non_nullable
                       as String,
-            category: null == category
-                ? _value.category
-                : category // ignore: cast_nullable_to_non_nullable
-                      as NoteCategory,
-            customCategory: freezed == customCategory
-                ? _value.customCategory
-                : customCategory // ignore: cast_nullable_to_non_nullable
-                      as String?,
+            categoryId: null == categoryId
+                ? _value.categoryId
+                : categoryId // ignore: cast_nullable_to_non_nullable
+                      as int,
+            categoryName: null == categoryName
+                ? _value.categoryName
+                : categoryName // ignore: cast_nullable_to_non_nullable
+                      as String,
             confidence: null == confidence
                 ? _value.confidence
                 : confidence // ignore: cast_nullable_to_non_nullable
@@ -138,10 +138,10 @@ class _$NoteCopyWithImpl<$Res, $Val extends Note>
                 ? _value.audioDuration
                 : audioDuration // ignore: cast_nullable_to_non_nullable
                       as Duration?,
-            filePath: freezed == filePath
-                ? _value.filePath
-                : filePath // ignore: cast_nullable_to_non_nullable
-                      as String?,
+            isDraft: null == isDraft
+                ? _value.isDraft
+                : isDraft // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -160,15 +160,15 @@ abstract class _$$NoteImplCopyWith<$Res> implements $NoteCopyWith<$Res> {
     String id,
     String originalText,
     String rewrittenText,
-    NoteCategory category,
-    String? customCategory,
+    int categoryId,
+    String categoryName,
     double confidence,
     DateTime createdAt,
     DateTime? updatedAt,
     List<String> tags,
     NoteSource source,
     Duration? audioDuration,
-    String? filePath,
+    bool isDraft,
   });
 }
 
@@ -187,15 +187,15 @@ class __$$NoteImplCopyWithImpl<$Res>
     Object? id = null,
     Object? originalText = null,
     Object? rewrittenText = null,
-    Object? category = null,
-    Object? customCategory = freezed,
+    Object? categoryId = null,
+    Object? categoryName = null,
     Object? confidence = null,
     Object? createdAt = null,
     Object? updatedAt = freezed,
     Object? tags = null,
     Object? source = null,
     Object? audioDuration = freezed,
-    Object? filePath = freezed,
+    Object? isDraft = null,
   }) {
     return _then(
       _$NoteImpl(
@@ -211,14 +211,14 @@ class __$$NoteImplCopyWithImpl<$Res>
             ? _value.rewrittenText
             : rewrittenText // ignore: cast_nullable_to_non_nullable
                   as String,
-        category: null == category
-            ? _value.category
-            : category // ignore: cast_nullable_to_non_nullable
-                  as NoteCategory,
-        customCategory: freezed == customCategory
-            ? _value.customCategory
-            : customCategory // ignore: cast_nullable_to_non_nullable
-                  as String?,
+        categoryId: null == categoryId
+            ? _value.categoryId
+            : categoryId // ignore: cast_nullable_to_non_nullable
+                  as int,
+        categoryName: null == categoryName
+            ? _value.categoryName
+            : categoryName // ignore: cast_nullable_to_non_nullable
+                  as String,
         confidence: null == confidence
             ? _value.confidence
             : confidence // ignore: cast_nullable_to_non_nullable
@@ -243,10 +243,10 @@ class __$$NoteImplCopyWithImpl<$Res>
             ? _value.audioDuration
             : audioDuration // ignore: cast_nullable_to_non_nullable
                   as Duration?,
-        filePath: freezed == filePath
-            ? _value.filePath
-            : filePath // ignore: cast_nullable_to_non_nullable
-                  as String?,
+        isDraft: null == isDraft
+            ? _value.isDraft
+            : isDraft // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -259,15 +259,15 @@ class _$NoteImpl implements _Note {
     required this.id,
     required this.originalText,
     required this.rewrittenText,
-    required this.category,
-    this.customCategory,
+    required this.categoryId,
+    required this.categoryName,
     required this.confidence,
     required this.createdAt,
     this.updatedAt,
     final List<String> tags = const [],
-    this.source = NoteSource.voice,
+    this.source = NoteSource.text,
     this.audioDuration,
-    this.filePath,
+    this.isDraft = false,
   }) : _tags = tags;
 
   factory _$NoteImpl.fromJson(Map<String, dynamic> json) =>
@@ -280,9 +280,9 @@ class _$NoteImpl implements _Note {
   @override
   final String rewrittenText;
   @override
-  final NoteCategory category;
+  final int categoryId;
   @override
-  final String? customCategory;
+  final String categoryName;
   @override
   final double confidence;
   @override
@@ -304,11 +304,12 @@ class _$NoteImpl implements _Note {
   @override
   final Duration? audioDuration;
   @override
-  final String? filePath;
+  @JsonKey()
+  final bool isDraft;
 
   @override
   String toString() {
-    return 'Note(id: $id, originalText: $originalText, rewrittenText: $rewrittenText, category: $category, customCategory: $customCategory, confidence: $confidence, createdAt: $createdAt, updatedAt: $updatedAt, tags: $tags, source: $source, audioDuration: $audioDuration, filePath: $filePath)';
+    return 'Note(id: $id, originalText: $originalText, rewrittenText: $rewrittenText, categoryId: $categoryId, categoryName: $categoryName, confidence: $confidence, createdAt: $createdAt, updatedAt: $updatedAt, tags: $tags, source: $source, audioDuration: $audioDuration, isDraft: $isDraft)';
   }
 
   @override
@@ -321,10 +322,10 @@ class _$NoteImpl implements _Note {
                 other.originalText == originalText) &&
             (identical(other.rewrittenText, rewrittenText) ||
                 other.rewrittenText == rewrittenText) &&
-            (identical(other.category, category) ||
-                other.category == category) &&
-            (identical(other.customCategory, customCategory) ||
-                other.customCategory == customCategory) &&
+            (identical(other.categoryId, categoryId) ||
+                other.categoryId == categoryId) &&
+            (identical(other.categoryName, categoryName) ||
+                other.categoryName == categoryName) &&
             (identical(other.confidence, confidence) ||
                 other.confidence == confidence) &&
             (identical(other.createdAt, createdAt) ||
@@ -335,8 +336,7 @@ class _$NoteImpl implements _Note {
             (identical(other.source, source) || other.source == source) &&
             (identical(other.audioDuration, audioDuration) ||
                 other.audioDuration == audioDuration) &&
-            (identical(other.filePath, filePath) ||
-                other.filePath == filePath));
+            (identical(other.isDraft, isDraft) || other.isDraft == isDraft));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -346,15 +346,15 @@ class _$NoteImpl implements _Note {
     id,
     originalText,
     rewrittenText,
-    category,
-    customCategory,
+    categoryId,
+    categoryName,
     confidence,
     createdAt,
     updatedAt,
     const DeepCollectionEquality().hash(_tags),
     source,
     audioDuration,
-    filePath,
+    isDraft,
   );
 
   /// Create a copy of Note
@@ -376,15 +376,15 @@ abstract class _Note implements Note {
     required final String id,
     required final String originalText,
     required final String rewrittenText,
-    required final NoteCategory category,
-    final String? customCategory,
+    required final int categoryId,
+    required final String categoryName,
     required final double confidence,
     required final DateTime createdAt,
     final DateTime? updatedAt,
     final List<String> tags,
     final NoteSource source,
     final Duration? audioDuration,
-    final String? filePath,
+    final bool isDraft,
   }) = _$NoteImpl;
 
   factory _Note.fromJson(Map<String, dynamic> json) = _$NoteImpl.fromJson;
@@ -396,9 +396,9 @@ abstract class _Note implements Note {
   @override
   String get rewrittenText;
   @override
-  NoteCategory get category;
+  int get categoryId;
   @override
-  String? get customCategory;
+  String get categoryName;
   @override
   double get confidence;
   @override
@@ -412,7 +412,7 @@ abstract class _Note implements Note {
   @override
   Duration? get audioDuration;
   @override
-  String? get filePath;
+  bool get isDraft;
 
   /// Create a copy of Note
   /// with the given fields replaced by the non-null parameter values.

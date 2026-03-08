@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/design_tokens.dart';
-import '../../features/notes/domain/note_category.dart';
+import '../../features/notes/domain/category.dart';
 
 class CategoryChip extends StatelessWidget {
   const CategoryChip({
@@ -12,14 +11,13 @@ class CategoryChip extends StatelessWidget {
     this.textStyle,
   });
 
-  final NoteCategory category;
+  final Category category;
   final double iconSize;
   final TextStyle? textStyle;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AppColors>()!;
-    final categoryColor = category.color(colors);
+    final categoryColor = category.color;
     final style = textStyle ?? AppTypography.caption;
 
     return Container(
@@ -35,7 +33,7 @@ class CategoryChip extends StatelessWidget {
           Icon(category.icon, size: iconSize, color: categoryColor),
           const SizedBox(width: 4),
           Text(
-            category.label,
+            category.displayName,
             style: style.copyWith(color: categoryColor),
           ),
         ],

@@ -1,5 +1,5 @@
 import '../ai/embedding_engine.dart';
-import '../ai/mock_embedding_engine.dart';
+import '../rag/cosine_similarity.dart';
 import '../storage/vector_store.dart';
 
 /// Finds semantically related notes based on embedding similarity.
@@ -67,6 +67,6 @@ class AutoLinker {
   Future<double> similarity(String a, String b) async {
     await embeddingEngine.loadModel('');
     final embeddings = await embeddingEngine.embedBatch([a, b]);
-    return MockEmbeddingEngine.cosineSimilarity(embeddings[0], embeddings[1]);
+    return cosineSimilarity(embeddings[0], embeddings[1]);
   }
 }

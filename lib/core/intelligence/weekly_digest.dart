@@ -40,8 +40,8 @@ class WeeklyDigest {
     final summaries = <String>[];
 
     for (final note in notes) {
-      categoryCounts[note.category.name] =
-          (categoryCounts[note.category.name] ?? 0) + 1;
+      categoryCounts[note.categoryName] =
+          (categoryCounts[note.categoryName] ?? 0) + 1;
       allTags.addAll(note.tags);
       summaries.add(note.rewrittenText.length > 100
           ? '${note.rewrittenText.substring(0, 100)}...'

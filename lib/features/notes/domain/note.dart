@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'note_category.dart';
+import 'note_source.dart';
 
 part 'note.freezed.dart';
 part 'note.g.dart';
@@ -10,15 +10,15 @@ class Note with _$Note {
     required String id,
     required String originalText,
     required String rewrittenText,
-    required NoteCategory category,
-    String? customCategory,
+    required int categoryId,
+    required String categoryName,
     required double confidence,
     required DateTime createdAt,
     DateTime? updatedAt,
     @Default([]) List<String> tags,
-    @Default(NoteSource.voice) NoteSource source,
+    @Default(NoteSource.text) NoteSource source,
     Duration? audioDuration,
-    String? filePath,
+    @Default(false) bool isDraft,
   }) = _Note;
 
   factory Note.fromJson(Map<String, dynamic> json) => _$NoteFromJson(json);

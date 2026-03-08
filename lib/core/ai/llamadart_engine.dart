@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:llamadart/llamadart.dart';
@@ -7,9 +6,24 @@ import 'llm_engine.dart';
 
 /// Real on-device LLM engine using llamadart (llama.cpp bindings).
 /// Runs GGUF models locally for rewriting, classification, and Q&A.
+///
+/// Uses [ChatSession] to apply the model's chat template automatically
+/// (e.g. Qwen's `<|im_start|>` format), which is required for
+/// instruction-tuned models to produce coherent output.
 class LlamaDartEngine implements LLMEngine {
   LlamaEngine? _engine;
   bool _loaded = false;
+
+  static const _defaultParams = GenerationParams(
+    maxTokens: 512,
+    temp: 0.3,
+    topP: 0.9,
+    penalty: 1.1,
+  );
+
+  static const _systemPrompt =
+      'You are a helpful assistant that processes notes. '
+      'Follow instructions precisely and respond concisely.';
 
   @override
   Future<void> loadModel(String modelPath) async {
@@ -31,7 +45,10 @@ class LlamaDartEngine implements LLMEngine {
     _engine = LlamaEngine(LlamaBackend());
 
     try {
-      await _engine!.loadModel(modelPath);
+      await _engine!.loadModel(
+        modelPath,
+        modelParams: const ModelParams(gpuLayers: 0, contextSize: 2048),
+      );
       _loaded = true;
     } catch (e) {
       _engine = null;
@@ -41,21 +58,32 @@ class LlamaDartEngine implements LLMEngine {
   }
 
   @override
-  Stream<String> generateStream(String prompt) async* {
+  Stream<String> generateStream(String prompt, {int? maxTokens, double? temperature}) {
     _checkLoaded();
-    await for (final token in _engine!.generate(prompt)) {
-      yield token;
-    }
+    return ChatSession.singleTurnStream(
+      _engine!,
+      _buildMessages(prompt),
+      params: _makeParams(maxTokens: maxTokens, temperature: temperature),
+    );
   }
 
   @override
-  Future<String> generate(String prompt) async {
+  Future<String> generate(String prompt, {int? maxTokens, double? temperature}) async {
     _checkLoaded();
-    final buffer = StringBuffer();
-    await for (final token in _engine!.generate(prompt)) {
-      buffer.write(token);
-    }
-    return buffer.toString().trim();
+    return ChatSession.singleTurn(
+      _engine!,
+      _buildMessages(prompt),
+      params: _makeParams(maxTokens: maxTokens, temperature: temperature),
+    );
+  }
+
+  GenerationParams _makeParams({int? maxTokens, double? temperature}) {
+    return GenerationParams(
+      maxTokens: maxTokens ?? _defaultParams.maxTokens,
+      temp: temperature ?? _defaultParams.temp,
+      topP: _defaultParams.topP,
+      penalty: _defaultParams.penalty,
+    );
   }
 
   @override
@@ -65,6 +93,19 @@ class LlamaDartEngine implements LLMEngine {
       _engine = null;
     }
     _loaded = false;
+  }
+
+  List<LlamaChatMessage> _buildMessages(String prompt) {
+    return [
+      LlamaChatMessage.text(
+        role: LlamaChatRole.system,
+        content: _systemPrompt,
+      ),
+      LlamaChatMessage.text(
+        role: LlamaChatRole.user,
+        content: prompt,
+      ),
+    ];
   }
 
   void _checkLoaded() {

@@ -10,8 +10,8 @@ _$NoteImpl _$$NoteImplFromJson(Map<String, dynamic> json) => _$NoteImpl(
   id: json['id'] as String,
   originalText: json['originalText'] as String,
   rewrittenText: json['rewrittenText'] as String,
-  category: $enumDecode(_$NoteCategoryEnumMap, json['category']),
-  customCategory: json['customCategory'] as String?,
+  categoryId: (json['categoryId'] as num).toInt(),
+  categoryName: json['categoryName'] as String,
   confidence: (json['confidence'] as num).toDouble(),
   createdAt: DateTime.parse(json['createdAt'] as String),
   updatedAt: json['updatedAt'] == null
@@ -22,11 +22,11 @@ _$NoteImpl _$$NoteImplFromJson(Map<String, dynamic> json) => _$NoteImpl(
       const [],
   source:
       $enumDecodeNullable(_$NoteSourceEnumMap, json['source']) ??
-      NoteSource.voice,
+      NoteSource.text,
   audioDuration: json['audioDuration'] == null
       ? null
       : Duration(microseconds: (json['audioDuration'] as num).toInt()),
-  filePath: json['filePath'] as String?,
+  isDraft: json['isDraft'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$$NoteImplToJson(_$NoteImpl instance) =>
@@ -34,23 +34,16 @@ Map<String, dynamic> _$$NoteImplToJson(_$NoteImpl instance) =>
       'id': instance.id,
       'originalText': instance.originalText,
       'rewrittenText': instance.rewrittenText,
-      'category': _$NoteCategoryEnumMap[instance.category]!,
-      'customCategory': instance.customCategory,
+      'categoryId': instance.categoryId,
+      'categoryName': instance.categoryName,
       'confidence': instance.confidence,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),
       'tags': instance.tags,
       'source': _$NoteSourceEnumMap[instance.source]!,
       'audioDuration': instance.audioDuration?.inMicroseconds,
-      'filePath': instance.filePath,
+      'isDraft': instance.isDraft,
     };
-
-const _$NoteCategoryEnumMap = {
-  NoteCategory.shopping: 'shopping',
-  NoteCategory.todos: 'todos',
-  NoteCategory.ideas: 'ideas',
-  NoteCategory.general: 'general',
-};
 
 const _$NoteSourceEnumMap = {
   NoteSource.voice: 'voice',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/design_tokens.dart';
-import '../../features/notes/domain/note_category.dart';
+import '../../features/notes/domain/note_source.dart';
 
 class SourceIcon extends StatelessWidget {
   const SourceIcon({

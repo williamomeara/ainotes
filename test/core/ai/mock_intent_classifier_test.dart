@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ainotes/core/ai/mock_intent_classifier.dart';
 import 'package:ainotes/features/unified_input/domain/input_intent.dart';
-import 'package:ainotes/features/notes/domain/note_category.dart';
 
 void main() {
   group('MockIntentClassifier', () {
@@ -19,26 +18,26 @@ void main() {
     test('detects shopping notes', () async {
       final intent = await classifier.classify('buy milk and eggs');
       expect(intent, isA<NoteIntent>());
-      expect((intent as NoteIntent).suggestedCategory, NoteCategory.shopping);
+      expect((intent as NoteIntent).suggestedCategoryName, 'shopping');
     });
 
     test('detects todo notes', () async {
       final intent = await classifier.classify('remind me to call the dentist');
       expect(intent, isA<NoteIntent>());
-      expect((intent as NoteIntent).suggestedCategory, NoteCategory.todos);
+      expect((intent as NoteIntent).suggestedCategoryName, 'todos');
     });
 
     test('detects idea notes', () async {
       final intent =
           await classifier.classify('I have an idea for a new app');
       expect(intent, isA<NoteIntent>());
-      expect((intent as NoteIntent).suggestedCategory, NoteCategory.ideas);
+      expect((intent as NoteIntent).suggestedCategoryName, 'ideas');
     });
 
     test('defaults to general', () async {
       final intent = await classifier.classify('The weather is nice today');
       expect(intent, isA<NoteIntent>());
-      expect((intent as NoteIntent).suggestedCategory, NoteCategory.general);
+      expect((intent as NoteIntent).suggestedCategoryName, 'general');
     });
 
     test('case insensitive', () async {

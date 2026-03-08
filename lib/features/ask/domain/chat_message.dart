@@ -16,6 +16,11 @@ sealed class ChatMessage with _$ChatMessage {
     @Default([]) List<String> sourceNoteIds,
   }) = AiMessage;
 
+  const factory ChatMessage.thinking({
+    required String statusText,
+    required DateTime timestamp,
+  }) = ThinkingMessage;
+
   factory ChatMessage.fromJson(Map<String, dynamic> json) =>
       _$ChatMessageFromJson(json);
 }

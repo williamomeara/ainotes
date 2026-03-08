@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/design_tokens.dart';
-import '../../notes/domain/note_category.dart';
+import '../../notes/providers/categories_provider.dart';
 import '../../home/presentation/note_card.dart';
 import '../providers/search_provider.dart';
 
@@ -149,6 +149,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _emptyQueryState(AppColors colors) {
+    final categories = ref.watch(categoriesProvider).valueOrNull ?? [];
+
     return Padding(
       padding: const EdgeInsets.all(Spacing.lg),
       child: Column(
@@ -161,10 +163,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Wrap(
             spacing: Spacing.sm,
             runSpacing: Spacing.sm,
-            children: NoteCategory.values.map((cat) {
-              final catColor = cat.color(colors);
+            children: categories.map((cat) {
+              final catColor = cat.color;
               return FilterChip(
-                label: Text(cat.label,
+                label: Text(cat.displayName,
                     style:
                         AppTypography.caption.copyWith(color: catColor)),
                 avatar:
@@ -172,8 +174,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 backgroundColor: catColor.withValues(alpha: 0.1),
                 side: BorderSide.none,
                 onSelected: (_) {
-                  _searchController.text = cat.label;
-                  ref.read(searchQueryProvider.notifier).state = cat.label;
+                  _searchController.text = cat.displayName;
+                  ref.read(searchQueryProvider.notifier).state =
+                      cat.displayName;
                 },
               );
             }).toList(),

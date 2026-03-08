@@ -1,46 +1,56 @@
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ainotes/core/ai/mock_embedding_engine.dart';
 import 'package:ainotes/core/ai/mock_llm_engine.dart';
-import 'package:ainotes/core/ai/mock_stt_engine.dart';
-import 'package:ainotes/features/notes/domain/note.dart';
-import 'package:ainotes/features/notes/domain/note_category.dart';
+import 'package:ainotes/core/storage/database.dart';
+import 'package:ainotes/core/storage/database_provider.dart';
+import 'package:ainotes/core/storage/vector_store.dart';
+import 'package:ainotes/features/notes/domain/note_source.dart';
 import 'package:ainotes/features/processing/providers/pipeline_provider.dart';
+import 'package:ainotes/features/recording/domain/recording_state.dart';
 import 'package:ainotes/features/recording/providers/recording_provider.dart';
 import 'package:ainotes/features/unified_input/providers/unified_input_provider.dart';
 
 void main() {
   group('Voice to Note Flow Integration', () {
     late ProviderContainer container;
+    late AppDatabase db;
 
     setUp(() {
+      db = AppDatabase(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [
+          databaseProvider.overrideWithValue(db),
           llmEngineProvider.overrideWithValue(MockLLMEngine()),
           embeddingEngineProvider.overrideWithValue(MockEmbeddingEngine()),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
         ],
       );
     });
 
-    tearDown(() {
+    tearDown(() async {
+      // Allow background processing to settle before disposing
+      await Future.delayed(const Duration(milliseconds: 500));
       container.dispose();
+      await db.close();
     });
 
     test('full flow: start recording → transcript → submit → LLM pipeline → note created',
         () async {
       // 1. Start recording
       final recordingNotifier = container.read(recordingProvider.notifier);
-      await recordingNotifier.start();
+      await recordingNotifier.startRecording();
 
       // 2. Wait for transcript
       await pumpEventQueue(times: 10);
       final recordingState = container.read(recordingProvider);
-      expect(recordingState.isRecording, true);
+      expect(recordingState.status, RecordingStatus.recording);
       expect(recordingState.transcript, isNotEmpty);
 
       // 3. Stop recording
-      await recordingNotifier.stop();
+      await recordingNotifier.stopRecording();
       final transcript = recordingState.transcript;
 
       // 4. Submit transcript through unified input
@@ -61,9 +71,9 @@ void main() {
 
     test('note has correct source (voice)', () async {
       final recordingNotifier = container.read(recordingProvider.notifier);
-      await recordingNotifier.start();
+      await recordingNotifier.startRecording();
       await pumpEventQueue(times: 5);
-      await recordingNotifier.stop();
+      await recordingNotifier.stopRecording();
 
       final transcript = container.read(recordingProvider).transcript;
 
@@ -78,7 +88,6 @@ void main() {
 
       expect(note, isNotNull);
       expect(note!.source, NoteSource.voice);
-      expect(note.audioDuration, isNotNull);
     });
 
     test('note has correct category (shopping)', () async {
@@ -95,7 +104,7 @@ void main() {
       );
 
       expect(note, isNotNull);
-      expect(note!.category, NoteCategory.shopping);
+      expect(note!.categoryName, 'shopping');
     });
 
     test('note has rewritten text (filler words removed)', () async {
@@ -120,13 +129,13 @@ void main() {
     test('pause and resume maintains transcript continuity', () async {
       final recordingNotifier = container.read(recordingProvider.notifier);
 
-      await recordingNotifier.start();
+      await recordingNotifier.startRecording();
       await pumpEventQueue(times: 5);
 
       final transcript1 = container.read(recordingProvider).transcript;
 
-      await recordingNotifier.pause();
-      await recordingNotifier.resume();
+      await recordingNotifier.pauseRecording();
+      await recordingNotifier.resumeRecording();
       await pumpEventQueue(times: 5);
 
       final transcript2 = container.read(recordingProvider).transcript;

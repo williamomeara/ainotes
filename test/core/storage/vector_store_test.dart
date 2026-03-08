@@ -5,10 +5,10 @@ import 'package:ainotes/core/storage/vector_store.dart';
 
 void main() {
   group('VectorStore', () {
-    late VectorStore store;
+    late InMemoryVectorStore store;
 
     setUp(() {
-      store = VectorStore();
+      store = InMemoryVectorStore();
     });
 
     test('starts empty', () {

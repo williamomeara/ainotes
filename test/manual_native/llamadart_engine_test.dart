@@ -40,7 +40,7 @@ void main() {
 
     test('rewriting removes filler words', () async {
       final input = 'um so like I need to uh get milk and eggs you know';
-      final prompt = PromptTemplates.rewritePrompt(input);
+      final prompt = PromptTemplates.rewrite(input);
 
       final output = await engine.generate(prompt);
 
@@ -54,7 +54,7 @@ void main() {
 
     test('classification returns valid category', () async {
       final input = 'Buy milk and eggs from the store';
-      final prompt = PromptTemplates.classifyPrompt(input);
+      final prompt = PromptTemplates.classify(input);
 
       final output = await engine.generate(prompt);
 
@@ -65,7 +65,7 @@ void main() {
 
     test('classification provides confidence score', () async {
       final input = 'Remind me to call the dentist tomorrow';
-      final prompt = PromptTemplates.classifyPrompt(input);
+      final prompt = PromptTemplates.classify(input);
 
       final output = await engine.generate(prompt);
 
@@ -77,7 +77,7 @@ void main() {
 
     test('tag extraction finds relevant keywords', () async {
       final text = 'Need to buy groceries for weekly meal prep on Sunday';
-      final prompt = PromptTemplates.extractTagsPrompt(text);
+      final prompt = PromptTemplates.extractTags(text);
 
       final output = await engine.generate(prompt);
 
@@ -96,7 +96,7 @@ void main() {
         They want the first phase completed by end of March, which seems doable.
         Need to follow up with the design team about mockups and get quotes from vendors.
       ''';
-      final prompt = PromptTemplates.rewritePrompt(longInput);
+      final prompt = PromptTemplates.rewrite(longInput);
 
       final output = await engine.generate(prompt);
 
@@ -105,8 +105,10 @@ void main() {
     });
 
     test('streaming generation works', () async {
-      final input = 'What is artificial intelligence?';
-      final prompt = PromptTemplates.qaPrompt(input, '');
+      final prompt = PromptTemplates.ragAnswer(
+        question: 'What is artificial intelligence?',
+        contextChunks: ['AI is the simulation of human intelligence by machines.'],
+      );
 
       final tokens = <String>[];
       await for (final token in engine.generateStream(prompt)) {
@@ -122,7 +124,7 @@ void main() {
       final stopwatch = Stopwatch()..start();
 
       final input = 'Summarize this: The quick brown fox jumps over the lazy dog.';
-      final prompt = PromptTemplates.rewritePrompt(input);
+      final prompt = PromptTemplates.rewrite(input);
 
       await engine.generate(prompt);
 
@@ -131,14 +133,14 @@ void main() {
     });
 
     test('handles empty input gracefully', () async {
-      final prompt = PromptTemplates.rewritePrompt('');
+      final prompt = PromptTemplates.rewrite('');
 
       expect(() => engine.generate(prompt), returnsNormally);
     });
 
     test('handles special characters in input', () async {
       final input = 'Buy "organic" milk & eggs @ \$5 each!';
-      final prompt = PromptTemplates.rewritePrompt(input);
+      final prompt = PromptTemplates.rewrite(input);
 
       final output = await engine.generate(prompt);
 

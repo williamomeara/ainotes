@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:yaml/yaml.dart';
 import '../../features/notes/domain/note.dart';
-import '../../features/notes/domain/note_category.dart';
+import '../../features/notes/domain/note_source.dart';
 import '../constants.dart';
 import '../error/result.dart';
 
@@ -77,10 +77,7 @@ class NoteFileStore {
     final buf = StringBuffer();
     buf.writeln('---');
     buf.writeln('id: ${note.id}');
-    buf.writeln('category: ${note.category.name}');
-    if (note.customCategory != null) {
-      buf.writeln('custom_category: ${note.customCategory}');
-    }
+    buf.writeln('category: ${note.categoryName}');
     buf.writeln('confidence: ${note.confidence}');
     buf.writeln('source: ${note.source.name}');
     buf.writeln('created: ${note.createdAt.toIso8601String()}');
@@ -123,16 +120,15 @@ class NoteFileStore {
       rewritten = bodyParts.trim();
       original = '';
     }
+    // Strip trailing --- separator (used between rewritten and original sections)
+    rewritten = rewritten.replaceFirst(RegExp(r'\n*---$'), '').trim();
 
     return Note(
       id: meta['id']?.toString() ?? id,
       originalText: original,
       rewrittenText: rewritten,
-      category: NoteCategory.values.firstWhere(
-        (c) => c.name == meta['category']?.toString(),
-        orElse: () => NoteCategory.general,
-      ),
-      customCategory: meta['custom_category']?.toString(),
+      categoryId: 0,
+      categoryName: meta['category']?.toString() ?? 'general',
       confidence: (meta['confidence'] as num?)?.toDouble() ?? 0.0,
       source: NoteSource.values.firstWhere(
         (s) => s.name == meta['source']?.toString(),
@@ -153,7 +149,6 @@ class NoteFileStore {
                       meta['audio_duration'].toString().replaceAll('s', '')) ??
                   0)
           : null,
-      filePath: '$id.md',
     );
   }
 }

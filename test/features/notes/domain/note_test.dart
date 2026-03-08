@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ainotes/features/notes/domain/note.dart';
-import 'package:ainotes/features/notes/domain/note_category.dart';
+import 'package:ainotes/features/notes/domain/note_source.dart';
 
 void main() {
   group('Note', () {
@@ -9,15 +9,17 @@ void main() {
         id: 'test-1',
         originalText: 'um get milk',
         rewrittenText: 'Buy milk',
-        category: NoteCategory.shopping,
+        categoryId: 1,
+        categoryName: 'shopping',
         confidence: 0.92,
         createdAt: DateTime(2026, 2, 11),
       );
 
       expect(note.id, 'test-1');
-      expect(note.category, NoteCategory.shopping);
+      expect(note.categoryName, 'shopping');
+      expect(note.categoryId, 1);
       expect(note.tags, isEmpty);
-      expect(note.source, NoteSource.voice);
+      expect(note.source, NoteSource.text);
     });
 
     test('copyWith works', () {
@@ -25,13 +27,15 @@ void main() {
         id: 'test-1',
         originalText: 'original',
         rewrittenText: 'rewritten',
-        category: NoteCategory.general,
+        categoryId: 4,
+        categoryName: 'general',
         confidence: 0.5,
         createdAt: DateTime(2026, 2, 11),
       );
 
-      final updated = note.copyWith(category: NoteCategory.ideas);
-      expect(updated.category, NoteCategory.ideas);
+      final updated = note.copyWith(categoryId: 3, categoryName: 'ideas');
+      expect(updated.categoryName, 'ideas');
+      expect(updated.categoryId, 3);
       expect(updated.id, 'test-1');
     });
 
@@ -40,7 +44,8 @@ void main() {
         id: 'test-1',
         originalText: 'original',
         rewrittenText: 'rewritten',
-        category: NoteCategory.todos,
+        categoryId: 2,
+        categoryName: 'todos',
         confidence: 0.8,
         createdAt: DateTime(2026, 2, 11),
         tags: ['urgent'],

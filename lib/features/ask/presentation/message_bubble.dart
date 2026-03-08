@@ -18,6 +18,8 @@ class MessageBubble extends StatelessWidget {
       UserMessage(:final text) => _userBubble(text, colors),
       AiMessage(:final text, :final sourceNoteIds) =>
         _aiBubble(context, text, sourceNoteIds, colors),
+      ThinkingMessage(:final statusText) =>
+        _thinkingBubble(statusText, colors),
     };
   }
 
@@ -93,6 +95,49 @@ class MessageBubble extends StatelessWidget {
                     .toList(),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _thinkingBubble(String statusText, AppColors colors) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 340),
+        margin: const EdgeInsets.only(
+            right: Spacing.xl, bottom: Spacing.md),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.lg, vertical: Spacing.lg),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(Radii.xl),
+            topRight: Radius.circular(Radii.xl),
+            bottomLeft: Radius.circular(Radii.md),
+            bottomRight: Radius.circular(Radii.xl),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.accent,
+              ),
+            ),
+            const SizedBox(width: Spacing.sm),
+            Text(
+              statusText,
+              style: AppTypography.body.copyWith(
+                color: colors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ],
         ),
       ),

@@ -10,7 +10,6 @@ import 'package:ainotes/core/ai/gemma_embedding_engine.dart';
 import 'package:ainotes/core/ai/llamadart_engine.dart';
 import 'package:ainotes/core/rag/rag_engine.dart';
 import 'package:ainotes/core/storage/vector_store.dart';
-import 'package:ainotes/features/notes/domain/note.dart';
 
 /// Manual end-to-end RAG integration test with real AI models.
 /// Tests the complete flow: note → embed → query → answer.
@@ -18,7 +17,7 @@ void main() {
   group('Native RAG Integration (Manual)', () {
     late LlamaDartEngine llmEngine;
     late GemmaEmbeddingEngine embeddingEngine;
-    late VectorStore vectorStore;
+    late InMemoryVectorStore vectorStore;
     late RAGEngine ragEngine;
 
     const llmModelPath =
@@ -43,7 +42,7 @@ void main() {
       embeddingEngine = GemmaEmbeddingEngine();
       await embeddingEngine.loadModel('');
 
-      vectorStore = VectorStore();
+      vectorStore = InMemoryVectorStore();
 
       ragEngine = RAGEngine(
         embeddingEngine: embeddingEngine,
@@ -63,16 +62,16 @@ void main() {
       const noteText = 'Project deadline is March 31st. Need to complete design phase by March 15th.';
 
       // 2. Embed the note
-      await ragEngine.indexNote(noteId, noteText);
+      await ragEngine.indexNote(noteId: noteId, text: noteText);
 
       // 3. Query with a question
       final answer = await ragEngine.query('When is the project deadline?');
 
       // 4. Verify answer
-      expect(answer.response, isNotEmpty);
-      expect(answer.response.toLowerCase(), contains('march'));
-      expect(answer.sources, isNotEmpty);
-      expect(answer.sources.first.noteId, noteId);
+      expect(answer.answer, isNotEmpty);
+      expect(answer.answer.toLowerCase(), contains('march'));
+      expect(answer.sourceNoteIds, isNotEmpty);
+      expect(answer.sourceNoteIds.first, noteId);
     });
 
     test('answer cites correct source notes', () async {
@@ -81,18 +80,17 @@ void main() {
       const note2 = ('note-2', 'Call dentist tomorrow');
       const note3 = ('note-3', 'Get groceries for meal prep');
 
-      await ragEngine.indexNote(note1.$1, note1.$2);
-      await ragEngine.indexNote(note2.$1, note2.$2);
-      await ragEngine.indexNote(note3.$1, note3.$2);
+      await ragEngine.indexNote(noteId: note1.$1, text: note1.$2);
+      await ragEngine.indexNote(noteId: note2.$1, text: note2.$2);
+      await ragEngine.indexNote(noteId: note3.$1, text: note3.$2);
 
       // Query about groceries
       final answer = await ragEngine.query('What do I need to buy?');
 
-      expect(answer.sources, isNotEmpty);
+      expect(answer.sourceNoteIds, isNotEmpty);
 
       // Should cite grocery-related notes (note1 and/or note3)
-      final sourceIds = answer.sources.map((s) => s.noteId).toSet();
-      expect(sourceIds, anyElement(anyOf('note-1', 'note-3')));
+      expect(answer.sourceNoteIds, anyElement(anyOf('note-1', 'note-3')));
     });
 
     test('answer quality is coherent and relevant', () async {
@@ -103,19 +101,19 @@ void main() {
         - Follow up on contract renewal in March
       ''';
 
-      await ragEngine.indexNote('meeting-note', noteText);
+      await ragEngine.indexNote(noteId: 'meeting-note', text: noteText);
 
       final answer = await ragEngine.query('What did we discuss in the meeting?');
 
-      expect(answer.response, isNotEmpty);
-      expect(answer.response.toLowerCase(), anyOf(
+      expect(answer.answer, isNotEmpty);
+      expect(answer.answer.toLowerCase(), anyOf(
         contains('revenue'),
         contains('quarterly'),
         contains('contract'),
       ));
 
       // Should be a complete sentence/paragraph, not fragments
-      expect(answer.response.split(' ').length, greaterThan(5));
+      expect(answer.answer.split(' ').length, greaterThan(5));
     });
 
     test('multiple sources are synthesized correctly', () async {
@@ -123,16 +121,16 @@ void main() {
       const note2 = ('client-2', 'Client office is downtown');
       const note3 = ('client-3', 'Client project started in January');
 
-      await ragEngine.indexNote(note1.$1, note1.$2);
-      await ragEngine.indexNote(note2.$1, note2.$2);
-      await ragEngine.indexNote(note3.$1, note3.$2);
+      await ragEngine.indexNote(noteId: note1.$1, text: note1.$2);
+      await ragEngine.indexNote(noteId: note2.$1, text: note2.$2);
+      await ragEngine.indexNote(noteId: note3.$1, text: note3.$2);
 
       final answer = await ragEngine.query('Tell me about the client');
 
-      expect(answer.sources.length, greaterThanOrEqualTo(2));
+      expect(answer.sourceNoteIds.length, greaterThanOrEqualTo(2));
 
       // Answer should incorporate info from multiple sources
-      final responseWords = answer.response.toLowerCase().split(' ').toSet();
+      final responseWords = answer.answer.toLowerCase().split(' ').toSet();
       final hasMultipleTopics = (
         responseWords.contains('meeting') || responseWords.contains('morning')
       ) && (
@@ -143,24 +141,24 @@ void main() {
 
     test('RAG handles no relevant notes gracefully', () async {
       // Index unrelated note
-      await ragEngine.indexNote('unrelated', 'Buy milk and eggs');
+      await ragEngine.indexNote(noteId: 'unrelated', text: 'Buy milk and eggs');
 
       // Query about something totally different
       final answer = await ragEngine.query('What is the weather like?');
 
-      expect(answer.response, isNotEmpty);
+      expect(answer.answer, isNotEmpty);
       // Should acknowledge no relevant notes or provide general response
     });
 
     test('semantic search finds notes even with different wording', () async {
       const noteText = 'Need to purchase organic dairy products from Whole Foods';
-      await ragEngine.indexNote('dairy-note', noteText);
+      await ragEngine.indexNote(noteId: 'dairy-note', text: noteText);
 
       final answer = await ragEngine.query('What groceries should I get?');
 
-      expect(answer.sources, isNotEmpty);
-      expect(answer.sources.first.noteId, 'dairy-note');
-      expect(answer.response.toLowerCase(), anyOf(
+      expect(answer.sourceNoteIds, isNotEmpty);
+      expect(answer.sourceNoteIds.first, 'dairy-note');
+      expect(answer.answer.toLowerCase(), anyOf(
         contains('dairy'),
         contains('organic'),
         contains('groceries'),
@@ -170,7 +168,7 @@ void main() {
     test('performance: RAG query completes in <5s', () async {
       // Index several notes
       for (int i = 0; i < 5; i++) {
-        await ragEngine.indexNote('note-$i', 'Sample note content $i');
+        await ragEngine.indexNote(noteId: 'note-$i', text: 'Sample note content $i');
       }
 
       final stopwatch = Stopwatch()..start();
@@ -180,35 +178,30 @@ void main() {
       expect(stopwatch.elapsedMilliseconds, lessThan(5000));
     });
 
-    test('findSimilarNotes returns ranked results', () async {
-      await ragEngine.indexNote('shopping-1', 'Buy milk and eggs');
-      await ragEngine.indexNote('shopping-2', 'Get bread from bakery');
-      await ragEngine.indexNote('meeting-1', 'Project meeting tomorrow');
+    test('findSimilar returns ranked results', () async {
+      await ragEngine.indexNote(noteId: 'shopping-1', text: 'Buy milk and eggs');
+      await ragEngine.indexNote(noteId: 'shopping-2', text: 'Get bread from bakery');
+      await ragEngine.indexNote(noteId: 'meeting-1', text: 'Project meeting tomorrow');
 
-      final results = await ragEngine.findSimilarNotes('grocery shopping');
+      final results = await ragEngine.findSimilar('grocery shopping');
 
       expect(results, isNotEmpty);
       expect(results.length, greaterThanOrEqualTo(2));
 
       // First results should be shopping-related
-      expect(results.first.noteId, anyOf('shopping-1', 'shopping-2'));
-
-      // Results should be sorted by similarity
-      for (int i = 1; i < results.length; i++) {
-        expect(results[i].similarity, lessThanOrEqualTo(results[i-1].similarity));
-      }
+      expect(results.first, anyOf('shopping-1', 'shopping-2'));
     });
 
     test('removeNote deletes from vector index', () async {
-      await ragEngine.indexNote('temp-note', 'Temporary note');
+      await ragEngine.indexNote(noteId: 'temp-note', text: 'Temporary note');
 
-      var results = await ragEngine.findSimilarNotes('temporary');
+      var results = await ragEngine.findSimilar('temporary');
       expect(results, isNotEmpty);
 
       await ragEngine.removeNote('temp-note');
 
-      results = await ragEngine.findSimilarNotes('temporary');
-      expect(results.where((r) => r.noteId == 'temp-note'), isEmpty);
+      results = await ragEngine.findSimilar('temporary');
+      expect(results.where((id) => id == 'temp-note'), isEmpty);
     });
   });
 }

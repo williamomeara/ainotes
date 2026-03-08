@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
+
 import '../ai/embedding_engine.dart';
 import '../ai/llm_engine.dart';
-import '../ai/mock_embedding_engine.dart';
 import '../storage/vector_store.dart';
 import 'chunker.dart';
 import 'context_builder.dart';
+import 'cosine_similarity.dart';
 
 /// Result of a RAG query, including the answer and source note IDs.
 class RAGResult {
@@ -57,11 +59,22 @@ class RAGEngine {
 
   /// Query the knowledge base using RAG.
   Future<RAGResult> query(String question, {int topK = 5}) async {
+    final preview = question.length > 50 ? '${question.substring(0, 50)}...' : question;
+    debugPrint('[AiNotes] RAG: embedding query "$preview"');
+
     // Embed the query
-    final queryEmbedding = await embeddingEngine.embed(question);
+    late final List<double> queryEmbedding;
+    try {
+      queryEmbedding = await embeddingEngine.embed(question);
+    } catch (e) {
+      debugPrint('[AiNotes] RAG embed failed: $e');
+      rethrow;
+    }
 
     // Retrieve similar chunks
-    final results = await vectorStore.search(queryEmbedding, topK: topK);
+    final results = await vectorStore.search(queryEmbedding, topK: topK, minSimilarity: 0.3);
+    final noteIds = results.map((r) => r.noteId).toSet().toList();
+    debugPrint('[AiNotes] RAG: found ${results.length} relevant chunks from ${noteIds.length} notes');
 
     if (results.isEmpty) {
       return const RAGResult(
@@ -73,13 +86,20 @@ class RAGEngine {
 
     // Build context and generate answer
     final chunks = results.map((r) => r.text).toList();
-    final noteIds = results.map((r) => r.noteId).toSet().toList();
     final prompt = contextBuilder.buildRAGPrompt(
       question: question,
       retrievedChunks: chunks,
     );
 
-    final answer = await llmEngine.generate(prompt);
+    debugPrint('[AiNotes] RAG: generating answer from ${chunks.length} chunks');
+
+    late final String answer;
+    try {
+      answer = await llmEngine.generate(prompt, maxTokens: 256, temperature: 0.3);
+    } catch (e) {
+      debugPrint('[AiNotes] RAG generate failed: $e');
+      rethrow;
+    }
 
     return RAGResult(answer: answer, sourceNoteIds: noteIds);
   }
@@ -94,6 +114,6 @@ class RAGEngine {
   /// Compute similarity between two texts.
   Future<double> similarity(String a, String b) async {
     final embeddings = await embeddingEngine.embedBatch([a, b]);
-    return MockEmbeddingEngine.cosineSimilarity(embeddings[0], embeddings[1]);
+    return cosineSimilarity(embeddings[0], embeddings[1]);
   }
 }

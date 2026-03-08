@@ -1,21 +1,34 @@
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ainotes/features/notes/domain/note.dart';
-import 'package:ainotes/features/notes/domain/note_category.dart';
+import 'package:ainotes/core/storage/database.dart';
+import 'package:ainotes/core/storage/database_provider.dart';
+import 'package:ainotes/core/storage/vector_store.dart';
+import 'package:ainotes/features/notes/domain/note_source.dart';
 import 'package:ainotes/features/notes/providers/notes_provider.dart';
 import 'package:ainotes/features/processing/providers/pipeline_provider.dart';
 
 void main() {
   group('NotesProvider', () {
     late ProviderContainer container;
+    late AppDatabase db;
 
     setUp(() {
-      container = ProviderContainer();
+      db = AppDatabase(NativeDatabase.memory());
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          vectorStoreProvider.overrideWithValue(InMemoryVectorStore()),
+        ],
+      );
     });
 
-    tearDown(() {
+    tearDown(() async {
+      // Allow any pending async operations (e.g., refresh()) to complete
+      await Future.delayed(const Duration(milliseconds: 50));
       container.dispose();
+      await db.close();
     });
 
     test('createNote adds a new note', () async {
@@ -24,14 +37,14 @@ void main() {
       final note = await notifier.createNote(
         originalText: 'Buy milk',
         rewrittenText: 'Shopping: milk',
-        category: NoteCategory.shopping,
+        categoryName: 'shopping',
         source: NoteSource.text,
       );
 
       expect(note, isNotNull);
       expect(note!.originalText, 'Buy milk');
       expect(note.rewrittenText, 'Shopping: milk');
-      expect(note.category, NoteCategory.shopping);
+      expect(note.categoryName, 'shopping');
     });
 
     test('updateNote modifies existing note', () async {
@@ -41,7 +54,7 @@ void main() {
       final note = await notifier.createNote(
         originalText: 'Buy milk',
         rewrittenText: 'Shopping: milk',
-        category: NoteCategory.shopping,
+        categoryName: 'shopping',
         source: NoteSource.text,
       );
 
@@ -65,7 +78,7 @@ void main() {
       final note = await notifier.createNote(
         originalText: 'Test note',
         rewrittenText: 'Test note',
-        category: NoteCategory.general,
+        categoryName: 'general',
         source: NoteSource.text,
       );
 
@@ -85,13 +98,13 @@ void main() {
       await notifier.createNote(
         originalText: 'Note 1',
         rewrittenText: 'Note 1',
-        category: NoteCategory.general,
+        categoryName: 'general',
         source: NoteSource.text,
       );
       await notifier.createNote(
         originalText: 'Note 2',
         rewrittenText: 'Note 2',
-        category: NoteCategory.todos,
+        categoryName: 'todos',
         source: NoteSource.text,
       );
 
@@ -109,13 +122,13 @@ void main() {
       await notifier.createNote(
         originalText: 'Buy milk',
         rewrittenText: 'Shopping: milk',
-        category: NoteCategory.shopping,
+        categoryName: 'shopping',
         source: NoteSource.text,
       );
       await notifier.createNote(
         originalText: 'Call dentist',
         rewrittenText: 'Todo: call dentist',
-        category: NoteCategory.todos,
+        categoryName: 'todos',
         source: NoteSource.text,
       );
 
@@ -124,35 +137,35 @@ void main() {
 
       // Filter shopping notes
       final shoppingNotes = allNotes
-          .where((note) => note.category == NoteCategory.shopping)
+          .where((note) => note.categoryName == 'shopping')
           .toList();
       expect(shoppingNotes, isNotEmpty);
-      expect(shoppingNotes.every((n) => n.category == NoteCategory.shopping),
-          true);
+      expect(shoppingNotes.every((n) => n.categoryName == 'shopping'), true);
 
       // Filter todos
       final todoNotes = allNotes
-          .where((note) => note.category == NoteCategory.todos)
+          .where((note) => note.categoryName == 'todos')
           .toList();
       expect(todoNotes, isNotEmpty);
-      expect(todoNotes.every((n) => n.category == NoteCategory.todos), true);
+      expect(todoNotes.every((n) => n.categoryName == 'todos'), true);
     });
 
     test('notes are sorted by creation date', () async {
       final notifier = container.read(notesProvider.notifier);
 
-      // Create notes with delays
+      // Create notes with sufficient delay for distinct timestamps
+      // Drift stores dateTime as Unix seconds, so need >1s gap
       final note1 = await notifier.createNote(
         originalText: 'First',
         rewrittenText: 'First',
-        category: NoteCategory.general,
+        categoryName: 'general',
         source: NoteSource.text,
       );
-      await Future.delayed(const Duration(milliseconds: 10));
+      await Future.delayed(const Duration(milliseconds: 1100));
       final note2 = await notifier.createNote(
         originalText: 'Second',
         rewrittenText: 'Second',
-        category: NoteCategory.general,
+        categoryName: 'general',
         source: NoteSource.text,
       );
 
