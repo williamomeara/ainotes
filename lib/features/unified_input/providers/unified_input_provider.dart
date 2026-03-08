@@ -75,6 +75,11 @@ class UnifiedInputNotifier extends StateNotifier<UnifiedInputState> {
             debugPrint('[AiNotes] Draft note created: ${note.id} (isDraft=true, category=${note.categoryName})');
             state = state.copyWith(isProcessing: false);
 
+            // Navigate to Home to show the draft card with typewriter effect
+            if (_context != null && _context!.mounted) {
+              _context!.go('/home');
+            }
+
             debugPrint('[AiNotes] Launching background processing for ${note.id}');
             _processInBackground(note.id, text, source);
           } else {

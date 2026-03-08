@@ -100,11 +100,11 @@ class _TextCaptureScreenState extends ConsumerState<TextCaptureScreen> {
 
     if (!mounted) return;
 
+    // Navigation is handled by UnifiedInputProvider:
+    // NoteIntent → /home, QuestionIntent → /ask
     final error = ref.read(unifiedInputProvider).error;
     if (error != null) {
       AppSnackbar.error(context, 'Failed to save note. Please try again.');
-    } else {
-      context.go('/home');
     }
   }
 }
