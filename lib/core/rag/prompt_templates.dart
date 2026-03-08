@@ -5,7 +5,7 @@ abstract final class PromptTemplates {
   static String rewrite(String originalText) => '''
 Rewrite the following text into a clean, well-organized note.
 Fix grammar, remove filler words (um, uh, like), and structure the content clearly.
-Keep all important information. Use markdown formatting if helpful.
+Keep all important information. Output plain text only, no markdown formatting, no headers, no bullet points.
 
 Text:
 $originalText''';
