@@ -64,7 +64,7 @@ final intentClassifierProvider = Provider<IntentClassifier>((ref) {
     final llmState = modelState.getDownloadState('qwen-2.5-1.5b');
     if (llmState is Ready && llmState.localPath.isNotEmpty) {
       debugPrint('[AiNotes] Intent classifier: LLMIntentClassifier (model: ${llmState.localPath})');
-      return LLMIntentClassifier(llmEngine: llmEngine);
+      return LLMIntentClassifier(llmEngine: llmEngine, modelPath: llmState.localPath);
     }
     debugPrint('[AiNotes] Intent classifier: MockIntentClassifier (LlamaDart available but model not ready)');
     return MockIntentClassifier();

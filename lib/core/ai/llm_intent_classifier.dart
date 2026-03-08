@@ -8,17 +8,27 @@ import 'intent_classifier.dart';
 import 'llm_engine.dart';
 
 /// Intent classifier powered by an on-device LLM.
+/// Auto-loads the model on first use via [modelPath].
 class LLMIntentClassifier implements IntentClassifier {
   final LLMEngine llmEngine;
+  final String modelPath;
+  bool _modelLoaded = false;
 
-  LLMIntentClassifier({required this.llmEngine});
+  LLMIntentClassifier({required this.llmEngine, required this.modelPath});
 
   @override
   Future<InputIntent> classify(String text) async {
     debugPrint('[AiNotes] LLMIntentClassifier.classify("${text.length > 40 ? '${text.substring(0, 40)}...' : text}")');
-    debugPrint('[AiNotes] LLM engine type: ${llmEngine.runtimeType}');
+    debugPrint('[AiNotes] LLM engine type: ${llmEngine.runtimeType}, modelLoaded=$_modelLoaded');
 
     try {
+      if (!_modelLoaded) {
+        debugPrint('[AiNotes] LLMIntentClassifier: loading model $modelPath');
+        await llmEngine.loadModel(modelPath);
+        _modelLoaded = true;
+        debugPrint('[AiNotes] LLMIntentClassifier: model loaded OK');
+      }
+
       final prompt = PromptTemplates.classifyIntent(text);
       final response = await llmEngine.generate(
         prompt,

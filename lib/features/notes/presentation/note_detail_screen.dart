@@ -181,10 +181,12 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                 // Category + confidence
                 Row(
                   children: [
-                    CategoryChip(
-                      category: category,
-                      iconSize: IconSizes.sm,
-                      textStyle: AppTypography.label,
+                    Flexible(
+                      child: CategoryChip(
+                        category: category,
+                        iconSize: IconSizes.sm,
+                        textStyle: AppTypography.label,
+                      ),
                     ),
                     const SizedBox(width: Spacing.sm),
                     _ConfidenceBadge(

@@ -47,7 +47,7 @@ class TestHarness {
       vectorStore: vectorStore,
     );
     intentClassifier = isRealLLM
-        ? LLMIntentClassifier(llmEngine: llmEngine)
+        ? LLMIntentClassifier(llmEngine: llmEngine, modelPath: '')
         : MockIntentClassifier();
   }
 
