@@ -44,5 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Run logs
-/logs/
+# Local dev (logs, scratch, etc.)
+/local_dev/
+
+# Git worktrees
+.worktrees/
